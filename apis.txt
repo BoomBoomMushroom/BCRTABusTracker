@@ -1,0 +1,4 @@
+GTFS - A zip with routes, stops, stop times, trips, etc - https://www.buztrakr.com/gtfs
+GTFS-RT Protobuf - A protobuf API that gives all active buses, their position, speed, bearing, and trip id - https://www.buztrakr.com/gtfs-rt/vehiclepositions
+
+mapbox or openstreetmap+leaflet for the map

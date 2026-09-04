@@ -1,0 +1,14 @@
+route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_url,route_color,route_text_color
+5620,222,"BL","Blue Line",Blue,3,,4073FF,FFFFFF
+5632,222,"GL","Gold Line",Gold,3,,CC9B01,FFFFFF
+5633,222,"GRL","Green Line",Green,3,,0C7215,FFFFFF
+5635,222,"R1","R1 - Hamilton/Middletown Shuttle",R1 - Hamilton/Middletown Shuttle,3,,D4DB12,FFFFFF
+5636,222,"RL","Red Line",Red,3,,AD0301,FFFFFF
+5638,222,"R3 ","R3 - Oxford-Forest Park Connector",R3 - Oxford-Forest Park Connector,3,,1C8746,FFFFFF
+5640,222,"R6 ","R6 - Job Connector",R6 - Job Connector,3,,B10085,FFFFFF
+6067,222,"CL","CincyLink",CincyLink,3,,0F52A8,FFFFFF
+6734,222,"CLX","CincyLink Express",CincyLink Express,3,,FF9933,FFFFFF
+6750,222,"O1","O1",O1,3,,E21776,FFFFFF
+6752,222,"O2","O2",O2,3,,ED8B00,FFFFFF
+6753,222,"O3","O3",O3,3,,FCD900,FFFFFF
+6754,222,"O4","O4",O4,3,,5EB6E4,FFFFFF
