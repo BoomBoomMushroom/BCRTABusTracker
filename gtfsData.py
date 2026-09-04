@@ -5,7 +5,7 @@ UPDATE_GTFS_DATA_TIME = 60 * 60 * 23 # 23 hours, give it some leniency when poll
 GTFS_DATA_PATH = "./gtfsData/"
 LAST_FETCH_GTFS_DATA_FILE = f"{GTFS_DATA_PATH}/_lastFetch.txt"
 
-USE_PLACEHOLDER_VEHICLE_POSITION_DATA = True
+USE_PLACEHOLDER_VEHICLE_POSITION_DATA = False
 
 import time
 import zipfile
@@ -66,5 +66,6 @@ class GTFS_DataFetcher:
         while True:
             time.sleep(0.01)
             self.feed = getVehicleData()
+            if self.feed == None: continue
             self.onNewFeedCallback(self.feed)
 

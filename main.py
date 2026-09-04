@@ -25,9 +25,14 @@ def onClientJoined(client, server: WebsocketServer):
         "type": "routesInfo",
         "data": transitClasses.Route.getAllRoutesJson()
     }
+    tripsPacket = {
+        "type": "tripsInfo",
+        "data": transitClasses.Trip.getAllTripsJson()
+    }
 
     server.send_message(client, json.dumps(shapesPacket))
     server.send_message(client, json.dumps(routesPacket))
+    server.send_message(client, json.dumps(tripsPacket))
 
 def onClientLeft(client, server: WebsocketServer):
     print(f"{client['address']} has left!")

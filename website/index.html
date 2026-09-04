@@ -18,6 +18,29 @@
                 width: 100%;
                 height: 100%;
             }
+
+            .routeControl{
+                background-color: white;
+                padding: 5px;
+            }
+            .routeRow{
+                display: flex;
+                padding-bottom: 5px;
+            }
+            .routeLabel{
+                width: 30px;
+                aspect-ratio: 1 / 1;
+                border-radius: 50%;
+                color: #fff;
+                text-align: center;
+                
+                background: #000;
+                
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0;
+            }
         </style>
         <div id="map"></div>
 
@@ -26,10 +49,190 @@
             var oxfordOhio = [39.5103048, -84.7420519]
             var map = L.map("map").setView(oxfordOhio, 14)
 
+            let shapes = {} // key,val = shapeId, Shape
+            let routes = {} // key,val = routeId, Route
+            let trips = {} // key,val = tripId, Trip
+            let vehicles = {} // key,val = vehicleId, Vehicle
+
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             }).addTo(map);
+
+            let routeControl = L.control({position: "topright"})
+            routeControl.onAdd = (map) => {
+                let div = L.DomUtil.create("div", "routeControl")
+                div.innerHTML = `
+                    <div class="routeTitle">Routes</div>
+                    <div id="routeList"></div>
+                `;
+                L.DomEvent.disableClickPropagation(div)
+                return div
+            }
+            routeControl.addTo(map)
+
+            function addRouteToControl(routeId){
+                let list = document.getElementById("routeList")
+
+                let row = document.createElement("div")
+                row.className = "routeRow"
+
+                let checkbox = document.createElement("input")
+                checkbox.type = "checkbox"
+                checkbox.checked = routes[routeId].showRoute
+
+                let label = document.createElement("p")
+                label.className = "routeLabel"
+                label.textContent = routes[routeId].shortName
+                label.style.backgroundColor = "#" + routes[routeId].color
+                label.style.color = "#" + routes[routeId].textColor
+                
+                checkbox.addEventListener("change", ()=>{
+                    if(checkbox.checked){
+                        routes[routeId].polyLine.addTo(map)
+                    }
+                    else{
+                        map.removeLayer(routes[routeId].polyLine)
+                    }
+                })
+                checkbox.dispatchEvent(new Event("change")) // update if it's shown or not based on the current value
+
+                row.appendChild(checkbox)
+                row.appendChild(label)
+                list.appendChild(row)
+            }
+
+            function createRoutePolyline(points, color){
+                if(color.startsWith("#") == false){ color = "#" + color }
+                poly = L.polyline(points, {
+                    color: color,
+                    weight: 5,
+                    opacity: 0.8
+                })
+                poly.addTo(map)
+                return poly
+            }
+
+            function getVehicleIcon(){
+                let zoom = map.getZoom()
+                let size = zoom * 1.5
+                //console.log(zoom, size)
+
+                return new L.Icon({
+                    iconUrl: "./bus.png",
+                    iconSize: [size,size],
+                    iconAnchor: [size/2, size/2]
+                })
+            }
+            function createVehicleIcon(vehicleId){
+                let marker = L.marker(vehicles[vehicleId].getPosition(), { icon: getVehicleIcon() })
+                marker.addTo(map)
+                return marker
+            }
+            map.on("zoomend", ()=>{
+                let icon = getVehicleIcon()
+
+                Object.keys(vehicles).forEach((vehicleId)=>{
+                    let v = vehicles[vehicleId]
+                    v.icon.setIcon(icon)
+                })
+            })
+            
+        </script>
+        <script>
+            class Shape{
+                constructor(shapeObj){
+                    this.id = shapeObj.id // str
+                    this.points = shapeObj.points // list[ (lat,lon) ]
+                    this.distanceTraveled = shapeObj.distanceTraveled // in km?
+                }
+                getId(){ return this.id }
+                getPoints(){ return this.points }
+            }
+
+            class Route{
+                constructor(routeObj, showRoute=false){
+                    this.id = routeObj.id
+                    this.shortName = routeObj.shortName
+                    this.longName = routeObj.longName
+                    this.color = routeObj.color
+                    this.textColor = routeObj.textColor
+
+                    this.polyLine = null // directly interact with this
+                    this.isRouteShown = showRoute
+                }
+                getId(){ return this.id }
+                getShortName(){ return this.shortName }
+                getLongName(){ return this.longName }
+                getColor(){ return this.color }
+                getTextColor(){ return this.textColor }
+            }
+
+            class Trip{
+                constructor(tripObj){
+                    this.id = tripObj.id
+                    this.direction = tripObj.direction
+                    this.routeId = tripObj.routeId
+                    this.shapeId = tripObj.shapeId
+
+                    // we should now init our route w/ its shape
+                    r = this.getRoute()
+                    if(r.polyLine == null){
+                        s = this.getShape()
+                        r.polyLine = createRoutePolyline(s.getPoints(), r.getColor())
+                        routes[r.id] = r
+                        addRouteToControl(r.id)
+                    }
+
+                }
+                getId(){ return this.id }
+                getDirection(){ return this.direction }
+                getRouteId(){ return this.routeId }
+                getShapeId(){ return this.shapeId }
+
+                getRoute(){ return routes[this.routeId] }
+                getShape(){ return shapes[this.shapeId] }
+            }
+
+            class Vehicle{
+                constructor(vehicleObj){
+                    // put all of the init stuff inside of populateData since we'll call it to update our data instead of making new vehicle objects many times
+                    this.populateData(vehicleObj)
+                    
+                    this.icon = null // icon to move when position updates
+                }
+                populateData(vehicleObj){
+                    this.id = vehicleObj.id
+                    this.startTime = vehicleObj.startTime
+                    this.direction = vehicleObj.direction
+                    this.lat = vehicleObj.lat
+                    this.lon = vehicleObj.lon
+                    this.bearing = vehicleObj.bearing // degresses CW from North
+                    this.speed = vehicleObj.speed // m/s
+                    this.timestamp = vehicleObj.timestamp
+                    this.occupancyStatus = vehicleObj.occupancyStatus
+                    this.tripId = vehicleObj.tripId
+                }
+
+                onUpdate(){
+                    // TODO: trigger stuff like moving the marker
+                    if(this.icon == null){
+                        this.icon = createVehicleIcon(this.id)
+                    }
+
+                    this.icon.setLatLng( this.getPosition() )
+                }
+
+                getId(){ return this.id }
+                getStartTime(){ return this.startTime }
+                getDirection(){ return this.direction }
+                getPosition(){ return [this.lat, this.lon] }
+                getBearing(){ return this.bearing }
+                getSpeed(){ return this.speed }
+                getTimestamp(){ return this.timestamp }
+                getOccupancyStatis(){ return this.occupancyStatus }
+                getTripId(){ return this.tripId }
+            }
         </script>
         <script>
             // socket.js
@@ -49,8 +252,54 @@
             }
 
             ws.onmessage = (e)=>{
-                data = JSON.parse(e.data)
+                let data = JSON.parse(e.data)
                 console.log(data)
+
+                let type = data["type"]
+                let packetData = data["data"]
+                if(type == "shapesInfo"){
+                    packetData.forEach(shapeData => {
+                        s = new Shape(shapeData)
+                        shapes[s.getId()] = s
+                    });
+                }
+                else if(type == "routesInfo"){
+                    packetData.forEach(routeData => {
+                        r = new Route(routeData)
+                        // show only the O1-O4 routes initially
+                        if(r.getShortName().startsWith("O")){ r.showRoute = true; }
+                        routes[r.getId()] = r
+                    });
+                }
+                else if(type == "tripsInfo"){
+                    packetData.forEach(tripData => {
+                        t = new Trip(tripData)
+                        trips[t.getId()] = t
+                    });
+                }
+                else if(type == "feed"){
+                    dataMadeTime = packetData["timestamp"]
+                    packetData["vehicles"].forEach(vehicleData => {
+                        vId = vehicleData.id
+                        v = vehicles[vId]
+                        if(v == null){
+                            // new vehicle we haven't made an object for! Make it now 
+                            v = new Vehicle(vehicleData)
+                        }
+                        else{
+                            if(v.timestamp != vehicleData.timestamp){
+                                // if the timestamps dont match then the vehicle has updated it's data!
+                                v.populateData(vehicleData)
+                                v.onUpdate()
+                            }
+                        }
+                        vehicles[vId] = v
+                        v.onUpdate()
+                    });
+                }
+                else{
+                    consle.error("Unknown type of packet!!")
+                }
             }
 
         </script>

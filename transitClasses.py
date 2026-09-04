@@ -61,7 +61,7 @@ class VehicleEntity:
             "speed": self.speed, # m/s
             "timestamp": self.timestamp,
             "occupancyStatus": self.occupancyStatus,
-            "trip": self.trip.toJson()
+            "tripId": self.tripId,
         }
 
 class Route:
@@ -124,6 +124,10 @@ class Trip:
         t: Route = cls.trips.get(tripId, None)
         if t == None: raise Exception(f"Trip w/ {tripId=} not found!!")
         return t
+
+    @classmethod
+    def getAllTripsJson(cls) -> list[Trip]:
+        return [t.toJson() for t in list(cls.trips.values())]
 
     def __init__(self, id, routeId, direction, shapeId):
         self.id: str = id
