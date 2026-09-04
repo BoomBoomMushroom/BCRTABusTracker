@@ -176,8 +176,8 @@ class Shape:
 
     @classmethod
     def getShapeFromId(cls, shapeId: str) -> Shape:
-        t: Route = cls.shapes.get(shapeId, None)
-        return t
+        s: Shape = cls.shapes.get(shapeId, None)
+        return s
 
     @classmethod
     def getAllShapesJson(cls) -> list:
@@ -201,3 +201,44 @@ class Shape:
 
     def addPoint(self, lat: float, lon: float): self.points.append([lat, lon])
     def setDistTraveled(self, dist: float): self.distanceTraveled = dist
+
+class Stop:
+    stops: dict[str, Stop] = {} # id, stop object
+
+    @classmethod
+    def generateStopsFromFile(cls, filePath: str):
+        with open(filePath, "r") as f:
+            data = csv.DictReader(f)
+            for row in data:
+                stopObj = Stop(row["stop_id"], row["stop_name"], row["stop_desc"], row["stop_lat"], row["stop_lon"])
+                cls.stops[stopObj.id] = stopObj
+
+    @classmethod
+    def getStopFromId(cls, stopId: str) -> Stop:
+        s: Stop = cls.stops.get(stopId, None)
+        return s
+
+    @classmethod
+    def getAllStopsJson(cls) -> list:
+        return [ s.toJson() for s in list(cls.stops.values()) ]
+
+    def __init__(self, id: str, name, desc, lat, lon):
+        self.id: str = id
+        self.name: str = name
+        self.desc: str = desc
+        self.lat: float = lat
+        self.lon: float = lon
+
+    def __str__(self):
+        return f"[Stop {self.id}] {self.name} | {self.desc}, @ ({self.lat}, {self.lon})"
+
+    def toJson(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "desc": self.desc,
+            "lat": self.lat,
+            "lon": self.lon,
+        }
+
+

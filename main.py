@@ -5,18 +5,27 @@ import gtfsData
 import transitClasses
 
 server: WebsocketServer = None
+fetcher: gtfsData.GTFS_DataFetcher = None
 
-def onNewFeedCallback(transitFeed: transitClasses.Feed):
+def onNewFeedCallback(transitFeed: transitClasses.Feed, specificClient=None):
     #print(transitFeed)
     msg = json.dumps({
         "type": "feed",
         "data": transitFeed.toJson()
     })
-    server.send_message_to_all(msg)
+
+    if specificClient == None:
+        server.send_message_to_all(msg)
+    else:
+        server.send_message(specificClient, msg)
 
 def onClientJoined(client, server: WebsocketServer):
     print(f"{client['address']} has joined!")
     # inform the user of all the shapes & routes info, a static registry that is referenced by trip & vehicle data
+    stopsPacket = {
+        "type": "stopsInfo",
+        "data": transitClasses.Stop.getAllStopsJson()
+    }
     shapesPacket = {
         "type": "shapesInfo",
         "data": transitClasses.Shape.getAllShapesJson()
@@ -30,9 +39,11 @@ def onClientJoined(client, server: WebsocketServer):
         "data": transitClasses.Trip.getAllTripsJson()
     }
 
+    server.send_message(client, json.dumps(stopsPacket))
     server.send_message(client, json.dumps(shapesPacket))
     server.send_message(client, json.dumps(routesPacket))
     server.send_message(client, json.dumps(tripsPacket))
+    if fetcher.feed != None: onNewFeedCallback(fetcher.feed)
 
 def onClientLeft(client, server: WebsocketServer):
     print(f"{client['address']} has left!")

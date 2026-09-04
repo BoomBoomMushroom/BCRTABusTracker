@@ -55,6 +55,7 @@ class GTFS_DataFetcher:
         checkAndFetchGTFSData() # update our static data first before loading anything, since they pull from the static data
 
         # generate all of our data for routes, trips, etc
+        transitClasses.Stop.generateStopsFromFile(f"{GTFS_DATA_PATH}/stops.txt")
         transitClasses.Route.generateRoutesFromFile(f"{GTFS_DATA_PATH}/routes.txt")
         transitClasses.Shape.generateShapesFromFile(f"{GTFS_DATA_PATH}/shapes.txt")
         transitClasses.Trip.generateTripsFromFile(f"{GTFS_DATA_PATH}/trips.txt")
@@ -63,9 +64,15 @@ class GTFS_DataFetcher:
         self.feedThread.start()
 
     def updateFeedLoop(self):
+        # TODO: dont fetch data if we dont have clients connected to send the data to
         while True:
             time.sleep(0.01)
-            self.feed = getVehicleData()
+            try:
+                self.feed = getVehicleData()
+            except: self.feed = None # failed to make the request
             if self.feed == None: continue
             self.onNewFeedCallback(self.feed)
 
+if __name__ == "__main__":
+
+    pass
