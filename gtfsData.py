@@ -5,6 +5,8 @@ UPDATE_GTFS_DATA_TIME = 60 * 60 * 23 # 23 hours, give it some leniency when poll
 GTFS_DATA_PATH = "./gtfsData/"
 LAST_FETCH_GTFS_DATA_FILE = f"{GTFS_DATA_PATH}/_lastFetch.txt"
 
+USE_PLACEHOLDER_VEHICLE_POSITION_DATA = True
+
 import time
 import zipfile
 import io
@@ -37,17 +39,25 @@ def getVehicleData() -> transitClasses.Feed:
     feed = gtfs_realtime_pb2.FeedMessage()
     response = requests.get("https://www.buztrakr.com/gtfs-rt/vehiclepositions")
     if response.status_code != 200: return None # if not 200, something went wrong, from my testing a 503
-    feed.ParseFromString(response.content)
+    responseData = response.content
+
+    if USE_PLACEHOLDER_VEHICLE_POSITION_DATA:
+        f = open("./vehicleposition_placeholder.pb", "rb")
+        responseData = f.read()
+        f.close()
+
+    feed.ParseFromString(responseData)
     return transitClasses.Feed(feed)
 
 class GTFS_DataFetcher:
-    def __init__(self):
+    def __init__(self, onNewFeedCallback):
+        self.onNewFeedCallback = onNewFeedCallback
         checkAndFetchGTFSData() # update our static data first before loading anything, since they pull from the static data
 
         # generate all of our data for routes, trips, etc
         transitClasses.Route.generateRoutesFromFile(f"{GTFS_DATA_PATH}/routes.txt")
-        transitClasses.Trip.generateTripsFromFile(f"{GTFS_DATA_PATH}/trips.txt")
         transitClasses.Shape.generateShapesFromFile(f"{GTFS_DATA_PATH}/shapes.txt")
+        transitClasses.Trip.generateTripsFromFile(f"{GTFS_DATA_PATH}/trips.txt")
         self.feed: transitClasses.Feed = None
         self.feedThread = threading.Thread(target=self.updateFeedLoop, args=(), daemon=True)
         self.feedThread.start()
@@ -56,4 +66,5 @@ class GTFS_DataFetcher:
         while True:
             time.sleep(0.01)
             self.feed = getVehicleData()
+            self.onNewFeedCallback(self.feed)
 

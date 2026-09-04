@@ -48,8 +48,9 @@
                 console.error(e)
             }
 
-            ws.onmessage = (msg)=>{
-                console.log("ws message", msg)
+            ws.onmessage = (e)=>{
+                data = JSON.parse(e.data)
+                console.log(data)
             }
 
         </script>

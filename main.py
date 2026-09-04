@@ -1,51 +1,50 @@
+from websocket_server import WebsocketServer
+import json
+
 import gtfsData
-import socket
-import threading
+import transitClasses
 
-# this will init all the data and spawn a thread to get the bus positions
-fetcher = gtfsData.GTFS_DataFetcher()
+server: WebsocketServer = None
 
-def handleClient(conn: socket.socket, addr: socket._RetAddress):
-    print(f"Connected by {addr}")
-    conn.send(b"hello")
+def onNewFeedCallback(transitFeed: transitClasses.Feed):
+    #print(transitFeed)
+    msg = json.dumps({
+        "type": "feed",
+        "data": transitFeed.toJson()
+    })
+    server.send_message_to_all(msg)
 
-    while True:
-        try:
-            disconnectUser = False
-            message: bytes = bytes()
-            while True:
-                try:
-                    read: bytes = conn.recv(1024)
-                    message += read
-                    if not read:
-                        # nothing to read, break
-                        disconnectUser = True
-                        break
-                except BlockingIOError: pass
-            if disconnectUser: break
+def onClientJoined(client, server: WebsocketServer):
+    print(f"{client['address']} has joined!")
+    # inform the user of all the shapes & routes info, a static registry that is referenced by trip & vehicle data
+    shapesPacket = {
+        "type": "shapesInfo",
+        "data": transitClasses.Shape.getAllShapesJson()
+    }
+    routesPacket = {
+        "type": "routesInfo",
+        "data": transitClasses.Route.getAllRoutesJson()
+    }
 
-            print(message)
-        except ConnectionResetError:
-            print(f"Client {addr} has disconnected")
-            break
+    server.send_message(client, json.dumps(shapesPacket))
+    server.send_message(client, json.dumps(routesPacket))
 
-    conn.close()
-    print(f"Connection with {addr} closed")
+def onClientLeft(client, server: WebsocketServer):
+    print(f"{client['address']} has left!")
 
-def startSocketServer():
-    HOST = "localhost"
-    PORT = 8002
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) # Enable reuse to prevent "Address already in use" when debugging
-    s.bind((HOST, PORT))
-    s.listen()
-    print(f"Server started on {HOST}:{PORT}")
-
-    while True:
-        # accept a connection
-        conn, addr = s.accept()
-        t = threading.Thread(target=handleClient, args=(conn,addr), daemon=True)
-        t.start()
+def onMessage(client, server: WebsocketServer, message):
+    pass
 
 if __name__ == "__main__":
-    startSocketServer()
+    # this will init all the data and spawn a thread to get the bus positions
+    fetcher = gtfsData.GTFS_DataFetcher(onNewFeedCallback) # can set it to None if we dont want callbacks
+
+    HOST = "localhost"
+    PORT = 8002
+    server = WebsocketServer(host=HOST, port=PORT)
+    server.set_fn_new_client(onClientJoined)
+    server.set_fn_client_left(onClientLeft)
+    server.set_fn_message_received(onMessage)
+    print(f"Starting server at {HOST}:{PORT}")
+    server.run_forever()
+    
