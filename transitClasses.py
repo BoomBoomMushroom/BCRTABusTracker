@@ -2,6 +2,10 @@ from google.transit import gtfs_realtime_pb2
 from typing import Literal
 import csv
 
+import datetime
+import time
+from zoneinfo import ZoneInfo
+
 OccupancyStatus = Literal["EMPTY", "MANY_SEATS_AVAILABLE", "FEW_SEATS_AVAILABLE", "STANDING_ROOM_ONLY", "CRUSHED_STANDING_ROOM_ONLY", "FULL", "NOT_ACCEPTING_PASSENGERS", "NO_DATA_AVAILABLE", "NOT_BOARDABLE"]
 OccupancyStatusFromNum: list[OccupancyStatus] = ["EMPTY", "MANY_SEATS_AVAILABLE", "FEW_SEATS_AVAILABLE", "STANDING_ROOM_ONLY", "CRUSHED_STANDING_ROOM_ONLY", "FULL", "NOT_ACCEPTING_PASSENGERS", "NO_DATA_AVAILABLE", "NOT_BOARDABLE"]
 
@@ -11,6 +15,18 @@ def hhmmssToSeconds(hhmmss: str) -> int:
     minutes = int(splits[1])
     seconds = int(splits[2])
     return (hours * 60*60) + (minutes*60) + seconds
+
+def getTodayObject() -> datetime.datetime:
+    # today at our lovely timezone
+    return datetime.datetime.fromtimestamp(time.time(), tz=ZoneInfo("America/New_York"))
+
+def getDayNum(date: datetime.datetime) -> int:
+    # use this to get it to be 0-6, Sun-Sat like javscript'
+    weekday = int(date.strftime('%w'))
+    return weekday
+
+def getDateStr(date: datetime.datetime) -> str:
+    return f"{date.year}{str(date.month).zfill(2)}{str(date.day).zfill(2)}"
 
 class Feed:
     def __init__(self, feedObj: gtfs_realtime_pb2.FeedMessage):
@@ -122,7 +138,7 @@ class Trip:
             data = csv.DictReader(f)
             for row in data:
                 t = Trip(
-                    row["trip_id"], row["route_id"], row["direction_id"], row["shape_id"]
+                    row["trip_id"], row["route_id"], row["direction_id"], row["shape_id"], row["service_id"]
                 )
                 cls.trips[t.id] = t
 
@@ -134,7 +150,7 @@ class Trip:
 
     @classmethod
     def getAllTripsJson(cls) -> list[Trip]:
-        return [t.toJson() for t in list(cls.trips.values())]
+        return [t.toJson() for t in list(cls.trips.values()) if t.isOfferedToday()]
 
     @classmethod
     def addStopTimeToCorrectTrip(cls, stopTime: StopTime):
@@ -142,11 +158,12 @@ class Trip:
         t.stopTimes.append(stopTime)
         cls.trips[t.id] = t
 
-    def __init__(self, id, routeId, direction, shapeId):
+    def __init__(self, id, routeId, direction, shapeId, serviceId):
         self.id: str = id
         self.routeId: str = routeId
         self.direction: str = direction # 0 is one direction (ex. outbound), and 1 is the opposite (ex. inbound)
         self.shapeId: str = shapeId # id for a geojson route shape from shapes.json
+        self.serviceId: str = serviceId # used to know if that trip is running on a certain day
 
         self.stopTimes: list[StopTime] = []
         self.route: Route = Route.getRouteFromId(self.routeId)
@@ -154,6 +171,18 @@ class Trip:
 
     def __str__(self):
         return self.getRoute().shortName
+
+    def isOfferedToday(self):
+        date = getTodayObject()
+        sId = self.serviceId
+        dateStr = getDateStr(date)
+
+        # check if that route has been overridden to be active or not today
+        exception = ServiceCalendar.exceptions.get(dateStr, {}).get(self.serviceId, None)
+        if exception != None: return exception
+
+        sc: ServiceCalendar = ServiceCalendar.getServiceCalendarFromId(sId)
+        return sc.activeDays[getDayNum(date)]
 
     def toJson(self):
         return {
@@ -293,4 +322,47 @@ class StopTime:
             "stopSequence": self.stopSequence,
             "isTimeExact": self.isTimeExact
         }
+
+class ServiceCalendar:
+    serviceCalendars: dict[str, ServiceCalendar] = {} # service id, service calendar obj
+    exceptions: dict[str, dict[str, bool]] = {} # date YYYYMMDD, {service id, is active}
+
+    @classmethod
+    def generateServiceCalendarsFromFile(cls, filePath: str):
+        with open(filePath, "r") as f:
+            data = csv.DictReader(f)
+            for row in data:
+                sc = ServiceCalendar(
+                    row["service_id"],
+                    row["monday"]=="1",
+                    row["tuesday"]=="1",
+                    row["wednesday"]=="1",
+                    row["thursday"]=="1",
+                    row["friday"]=="1",
+                    row["saturday"]=="1",
+                    row["sunday"]=="1",
+                )
+                cls.serviceCalendars[sc.id] = sc
+
+    @classmethod
+    def loadExceptions(cls, filePath: str):
+        with open(filePath, "r") as f:
+            data = csv.DictReader(f)
+            for row in data:
+                # exception types: 1=service has been added, 2=service has been removed
+                dateException = cls.exceptions.get(row["date"], {})
+                dateException[row["service_id"]] = row["exception_type"]=="1" # service has been added so set it to true
+                cls.exceptions[row["date"]] = dateException
+
+    @classmethod
+    def getServiceCalendarFromId(cls, serviceId: str) -> Trip:
+        sc: Route = cls.serviceCalendars.get(serviceId, None)
+        if sc == None: raise Exception(f"Service Calendar w/ {serviceId=} not found!!")
+        return sc
+
+    def __init__(self, serviceId, monday, tuesday, wednesday, thursday, friday, saturday, sunday):
+        self.id: str = serviceId
+        # do sunday first since (new Date()).getDay() returns a num 0-6, Sun -> Sat
+        self.activeDays: list[bool] = [sunday, monday, tuesday, wednesday, thursday, friday, saturday]
+
 

@@ -55,6 +55,9 @@ class GTFS_DataFetcher:
         checkAndFetchGTFSData() # update our static data first before loading anything, since they pull from the static data
 
         # generate all of our data for routes, trips, etc
+        transitClasses.ServiceCalendar.generateServiceCalendarsFromFile(f"{GTFS_DATA_PATH}/calendar.txt") # calendar first so we can purse bad trips
+        transitClasses.ServiceCalendar.loadExceptions(f"{GTFS_DATA_PATH}/calendar_dates.txt") # exceptions for things like holidays
+
         transitClasses.Stop.generateStopsFromFile(f"{GTFS_DATA_PATH}/stops.txt")
         transitClasses.Route.generateRoutesFromFile(f"{GTFS_DATA_PATH}/routes.txt")
         transitClasses.Shape.generateShapesFromFile(f"{GTFS_DATA_PATH}/shapes.txt")
@@ -67,7 +70,7 @@ class GTFS_DataFetcher:
     def updateFeedLoop(self):
         # TODO: dont fetch data if we dont have clients connected to send the data to
         while True:
-            time.sleep(0.01)
+            time.sleep(0.25)
             try:
                 self.feed = getVehicleData()
             except: self.feed = None # failed to make the request
@@ -75,5 +78,6 @@ class GTFS_DataFetcher:
             self.onNewFeedCallback(self.feed)
 
 if __name__ == "__main__":
+    print(transitClasses.getDateStr())
     pass
 

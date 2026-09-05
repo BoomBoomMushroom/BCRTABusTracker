@@ -8,6 +8,10 @@
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
+        <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
+        <link href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" rel="stylesheet">
+        <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet/leaflet-maplibre-gl.js"></script>
+
     </head>
     <body>
         <style>
@@ -50,6 +54,16 @@
                 justify-content: space-between;
             }
 
+            .routeStopsScroll{
+                height: 100px;
+                overflow: scroll;
+
+                border: 2px dashed black;
+                padding-left: 4px;
+                padding-bottom: 4px;
+            }
+
+
             .directionArrow{
                 background: transparent;
                 border: none;
@@ -87,6 +101,12 @@
         <div id="map"></div>
 
         <script>
+            // settings.js
+            let use24HrClock = false
+            let useLibertyMap = true
+
+        </script>
+        <script>
             // map.js
             var oxfordOhio = [39.5103048, -84.7420519]
             var map = L.map("map").setView(oxfordOhio, 14)
@@ -97,10 +117,29 @@
             let trips = {} // key,val = tripId, Trip
             let vehicles = {} // key,val = vehicleId, Vehicle
 
-            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            }).addTo(map);
+            if(useLibertyMap){
+                // this looks cleaner imo
+                let mapLayer = L.maplibreGL({
+                    style: 'https://tiles.openfreemap.org/styles/liberty',
+                }).addTo(map);
+                mapLayer.getMaplibreMap().on("load", () => {
+                    let mlMap = mapLayer.getMaplibreMap()
+                    mlMap.getStyle().layers.forEach(layer => {
+                        if(layer.type === "fill-extrusion"){
+                            mlMap.setPaintProperty(layer.id, "fill-extrusion-height", 0)
+                            mlMap.setPaintProperty(layer.id, "fill-extrusion-base", 0)
+                        }
+                    })
+                })
+            }
+            else{
+                // the original map
+                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                }).addTo(map);
+            }
+
 
             let routeControl = L.control({position: "topright"})
             routeControl.onAdd = (map) => {
@@ -113,7 +152,6 @@
                 return div
             }
             routeControl.addTo(map)
-
             function addRouteToControl(routeId){
                 let list = document.getElementById("routeList")
 
@@ -145,6 +183,9 @@
                         });
                     }
                     routes[routeId].isRouteShown = checkbox.checked
+                    Object.keys(vehicles).forEach(vId=>{
+                        vehicles[vId].onUpdate()
+                    })
                 })
                 checkbox.dispatchEvent(new Event("change")) // update if it's shown or not based on the current value
 
@@ -246,7 +287,6 @@
         </script>
         <script>
             // gtfsClasses.js
-            let use24HrClock = false
             let OccupancyStatus = {
                 "EMPTY": "Empty",
                 "MANY_SEATS_AVAILABLE": "Many seats available",
@@ -276,19 +316,43 @@
                     this.icon = createBusStopIcon(this.id)
                 }
                 getPopupText(){
-                    let text = `<h4>${this.name}</h4>`
+                    let text = `
+                    <div style="min-width: 150px;">
+                        <h3>${this.name}</h3>
+                    </div>
+                    `
                     if(this.desc != ""){ text += `\n${this.desc}` }
+                    let routeDropdowns = {} //key,val = routeShortname, html for that
                     this.tripStops.forEach(ts=>{
+                        // TODO: check if the route is being shown or not, and if not skip it.
+                        //      I don't think we dont care to see stops about hidden routes
                         let trip = trips[ts.tripId]
                         let route = routes[trip.getRouteId()]
                         let timePrefix = ts.isTimeExact ? "" : "Approx ~"
-                        let style = `style="background-color: #${route.color}; color: #${route.textColor};"`
-                        text += `\n
-                        <span class="routeLabel" ${style}>${route.shortName}</span>
+                        let style = `style="background-color: #${route.color}; color: #${route.textColor}; margin-bottom:5px;"`
+                        
+                        let routeText = routeDropdowns[route.shortName]
+                        if(routeText == null){
+                            routeText = `
+                            <details class="routeDropdown-${route.shortName}">
+                                <summary><span class="routeLabel" ${style}>${route.shortName}</span></summary>
+                                <div class="routeStopsScroll">
+                            `
+                            // end that route text with </div></details>
+                        }
+                        routeText += `\n
                         <span>${timePrefix}${clock24HrToPrefered(ts.arrivalTime)}</span>
-                        <br><br>
+                        <br>
                         `
+                        routeDropdowns[route.shortName] = routeText
                     })
+                    let routeDropdownKeys = Object.keys(routeDropdowns)
+                    routeDropdownKeys.sort() // use keys so we can sort them
+                    routeDropdownKeys.forEach(rtKey=>{
+                        let rt = routeDropdowns[rtKey]
+                        text += rt + "</div></details><br>"
+                    })
+
                     return text
                 }
 
@@ -304,7 +368,30 @@
                         map.removeLayer(this.icon) // calling this many times seemingly is fine
                         return; // no more stops, that about all we can do
                     }
+
+                    // get a list of the opened dropdowns
+                    let openedRoutes = []
+                    if(this.icon.isPopupOpen()){
+                        let popupEle = this.icon.getPopup().getElement()
+                        if(popupEle){
+                            popupEle.querySelectorAll("details[open]").forEach(details => {
+                                let routeClassName = details.classList[0]
+                                openedRoutes.push(routeClassName)
+                            })
+                        }
+                    }
+
                     this.icon.bindPopup(this.getPopupText()) // update the text
+
+                    if(openedRoutes.length > 0 && this.icon.isPopupOpen()){
+                        let popupEle = this.icon.getPopup().getElement()
+                        popupEle.querySelectorAll("details").forEach(details => {
+                            let routeClassName = details.classList[0]
+                            if(openedRoutes.includes(routeClassName)){
+                                details.open = true
+                            }
+                        })
+                    }
                 }
 
                 getId(){return this.id }
@@ -377,6 +464,7 @@
                     // put all of the init stuff inside of populateData since we'll call it to update our data instead of making new vehicle objects many times
                     this.populateData(vehicleObj)
                     
+                    this.hidden = false
                     this.icon = null // icon to move when position updates
                     this.directionArrow = null // icon to point in the direction of travel
                 }
@@ -402,12 +490,17 @@
                     }
                     // TODO: seemingly after 11pm the route of some of the last buses change and then they freeze
                     //      Maybe we need to check if they're trip is gone, or if they're missing from the list
-                    if(this.getTrip().getRoute().isRouteShown == false){
-                        // we dont want to view this bus, so we're gonna put them in the middle of the ocean
-                        this.lat = 0
-                        this.lon = 0
+                    let trip = this.getTrip()
+                    if(trip == null){
+                        // No trip for this bus? Make him disappear then
+                        this.hidden = true
+                    }
+                    else{
+                        let route = trip.getRoute()
+                        this.hidden = route.isRouteShown == false
                     }
 
+                    this.icon.bindPopup(this.getPopupText())
                     this.icon.setLatLng( this.getPosition() )
                     this.directionArrow.setLatLng( this.getPosition() )
                     this.directionArrow.getElement().querySelector(".arrow").style.transform = `rotate(${v.getBearing()}deg)`
@@ -416,7 +509,13 @@
                 getId(){ return this.id }
                 getStartTime(){ return this.startTime }
                 getDirection(){ return this.direction }
-                getPosition(){ return [this.lat, this.lon] }
+                getPosition(){
+                    if(this.hidden){
+                        // we dont want to view this bus, so we're gonna put them in the middle of the ocean
+                        return [0, 0]
+                    }
+                    return [this.lat, this.lon]
+                }
                 getBearing(){ return this.bearing }
                 getSpeed(){ return this.speed }
                 getTimestamp(){ return this.timestamp }
@@ -426,6 +525,7 @@
 
                 getPopupText(){
                     let trip = this.getTrip()
+                    if(trip == null){ return ""; }
                     let route = trip.getRoute()
 
                     let label = `<span class="routeLabel" style="color: #${route.getTextColor()}; background-color: #${route.getColor()}">${route.getShortName()}</span>`
@@ -454,12 +554,11 @@
             function clock24HrToPrefered(hhmmss){
                 if(use24HrClock){ return hhmmss }
 
-                let postfix = "am"
                 splits = hhmmss.split(":")
                 hours = parseInt(splits[0])
+                let postfix = hours >= 12 ? "pm" : "am"
                 if(hours > 12){
                     hours -= 12
-                    postfix = "pm"
                 }
                 return `${hours}:${splits[1]}:${splits[2]}${postfix}`
             }
@@ -470,14 +569,16 @@
                     let i = 0
                     while(i<s.tripStops.length){
                         let ts = s.tripStops[i]
+                        // this is an exact time, remove the value immediately
+                        if(ts.isTimeExact && ts.arrivalTimeSeconds > sinceMidnight){ break; }
                         // we'll leave it still there for ~2 minutes afterwards, incase the bus is running a bit late
                         if(ts.arrivalTimeSeconds+120 > sinceMidnight){ break; }
                         i++;
                     }
                     if(i != 0){
                         s.tripStops = s.tripStops.splice(i)
-                        s.onScheduleUpdated()
                     }
+                    s.onScheduleUpdated()
                 })
             }
             function newMinute(){
@@ -496,92 +597,137 @@
                 newMinute()
                 setInterval(newMinute, 60_000)
             }, 60_000 - (Date.now()%60_000)); // initial delay to sync us to the minute
+
+            function removeAllStops(){
+                Object.keys(stops).forEach(sKey=>{
+                    map.removeLayer( stops[sKey].icon )
+                })
+                stops = {}
+            }
+            function removeAllRoutes(){
+                Object.keys(routes).forEach(rKey=>{
+                    lines = Object.values(routes[rKey].polyLine)
+                    lines.forEach(pLine => {
+                        map.removeLayer(pLine)
+                    });
+                })
+                routes = {}
+            }
+            function removeAllVehicles(){
+                Object.keys(vehicles).forEach(vKey=>{
+                    map.removeLayer( vehicles[vKey].icon )
+                    map.removeLayer( vehicles[vKey].directionArrow )
+                })
+                vehicles = {}
+            }
         </script>
         <script>
             // socket.js
             let URL = "ws://127.0.0.1:8002"
-            let ws = new WebSocket(URL)
-
-            ws.onopen = (e)=>{
-                console.log("Websocket opened!")
-            }
-
-            ws.onclose = (e)=>{
-                console.log("Websocket closed!")
-            }
-
-            ws.onerror = (e)=>{
-                console.error(e)
-            }
-
-            ws.onmessage = (e)=>{
-                let data = JSON.parse(e.data)
-                let printData = true
-
-                let type = data["type"]
-                let packetData = data["data"]
-                if(type == "stopsInfo"){
-                    packetData.forEach(stopData => {
-                        s = new Stop(stopData)
-                        stops[s.getId()] = s
-                        s.updateIcon()
-                    });
+            let ws = null
+            
+            function reconnectWebsocket(){
+                ws = new WebSocket(URL)
+                
+                ws.onopen = (e)=>{
+                    console.log("Websocket opened!")
                 }
-                else if(type == "shapesInfo"){
-                    packetData.forEach(shapeData => {
-                        s = new Shape(shapeData)
-                        shapes[s.getId()] = s
-                    });
-                }
-                else if(type == "routesInfo"){
-                    packetData.forEach(routeData => {
-                        r = new Route(routeData)
-                        // show only the O1-O4 routes initially
-                        if(r.getShortName().startsWith("O")){ r.showRoute = true; }
-                        routes[r.getId()] = r
-                    });
-                }
-                else if(type == "tripsInfo"){
-                    packetData.forEach(tripData => {
-                        t = new Trip(tripData)
-                        trips[t.getId()] = t
-                    });
 
-                    Object.keys(routes).forEach(rId=>{
-                        addRouteToControl(rId)
-                    })
-                    Object.keys(stops).forEach(sId=>{
-                        stops[sId].sortScheduledStops()
-                    })
-                    removeOldStops(getTimeSinceMidnight())
+                ws.onclose = (e)=>{
+                    console.log("Websocket closed!")
+                    // TODO: make a little indicator saying wether we're connected to the server or not
+                    // cleanup our old data, not that we dont have a source of truth
+                    removeAllStops()
+                    shapes = {} // nothing to remove here
+                    removeAllRoutes()
+                    trips = {}
+                    removeAllVehicles()
+                    // remove and add it back and it will remove all of it's entries from being recreated
+                    map.removeLayer(routeControl)
+                    routeControl.addTo(map)
+
+                    setTimeout(() => {
+                        // wait 1 second before trying to reconnect
+                        reconnectWebsocket()
+                    }, 1000);
                 }
-                else if(type == "feed"){
-                    printData = false // dont print the 1 million feed packets we're gonna get
-                    dataMadeTime = packetData["timestamp"]
-                    packetData["vehicles"].forEach(vehicleData => {
-                        vId = vehicleData.id
-                        v = vehicles[vId]
-                        if(v == null){
-                            // new vehicle we haven't made an object for! Make it now 
-                            v = new Vehicle(vehicleData)
-                        }
-                        else{
-                            if(v.timestamp != vehicleData.timestamp){
-                                // if the timestamps dont match then the vehicle has updated it's data!
-                                v.populateData(vehicleData)
-                                v.onUpdate()
+
+                ws.onerror = (e)=>{
+                    console.error(e)
+                }
+
+                ws.onmessage = (e)=>{
+                    let data = JSON.parse(e.data)
+                    let printData = true
+
+                    let type = data["type"]
+                    let packetData = data["data"]
+                    if(type == "stopsInfo"){
+                        packetData.forEach(stopData => {
+                            s = new Stop(stopData)
+                            stops[s.getId()] = s
+                            s.updateIcon()
+                        });
+                    }
+                    else if(type == "shapesInfo"){
+                        packetData.forEach(shapeData => {
+                            s = new Shape(shapeData)
+                            shapes[s.getId()] = s
+                        });
+                    }
+                    else if(type == "routesInfo"){
+                        packetData.forEach(routeData => {
+                            r = new Route(routeData)
+                            // show only the O1-O4 routes initially
+                            if(r.getShortName().startsWith("O")){ r.showRoute = true; }
+                            routes[r.getId()] = r
+                        });
+                    }
+                    else if(type == "tripsInfo"){
+                        packetData.forEach(tripData => {
+                            t = new Trip(tripData)
+                            trips[t.getId()] = t
+                        });
+
+                        Object.keys(routes).forEach(rId=>{
+                            addRouteToControl(rId)
+                        })
+                        Object.keys(stops).forEach(sId=>{
+                            stops[sId].sortScheduledStops()
+                        })
+                        removeOldStops(getTimeSinceMidnight())
+                    }
+                    else if(type == "feed"){
+                        printData = false // dont print the 1 million feed packets we're gonna get
+                        console.log("Got feed update")
+
+                        dataMadeTime = packetData["timestamp"]
+                        packetData["vehicles"].forEach(vehicleData => {
+                            vId = vehicleData.id
+                            v = vehicles[vId]
+                            if(v == null){
+                                // new vehicle we haven't made an object for! Make it now 
+                                v = new Vehicle(vehicleData)
                             }
-                        }
-                        vehicles[vId] = v
-                        v.onUpdate()
-                    });
-                }
-                else{
-                    consle.error("Unknown type of packet!!")
-                }
+                            else{
+                                if(v.timestamp != vehicleData.timestamp){
+                                    // if the timestamps dont match then the vehicle has updated it's data!
+                                    v.populateData(vehicleData)
+                                    v.onUpdate()
+                                }
+                            }
+                            vehicles[vId] = v
+                            v.onUpdate()
+                        });
+                    }
+                    else{
+                        consle.error("Unknown type of packet!!")
+                    }
 
-                if(printData){ console.log(data) }
+                    if(printData){ console.log(data) }
+                }
             }
+            reconnectWebsocket() // init connect to the api websocket
 
         </script>
     </body>
