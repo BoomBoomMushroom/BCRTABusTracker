@@ -55,7 +55,7 @@ if __name__ == "__main__":
     # this will init all the data and spawn a thread to get the bus positions
     fetcher = gtfsData.GTFS_DataFetcher(onNewFeedCallback) # can set it to None if we dont want callbacks
 
-    HOST = "localhost"
+    HOST = "0.0.0.0"
     PORT = 8002
     server = WebsocketServer(host=HOST, port=PORT)
     server.set_fn_new_client(onClientJoined)
