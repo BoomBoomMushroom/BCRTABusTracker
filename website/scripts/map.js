@@ -15,6 +15,7 @@ let shapes = {} // key,val = shapeId, Shape
 let routes = {} // key,val = routeId, Route
 let trips = {} // key,val = tripId, Trip
 let vehicles = {} // key,val = vehicleId, Vehicle
+let userMarker = null
 
 if(useLibertyMap){
     // this looks cleaner imo

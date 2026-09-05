@@ -158,4 +158,33 @@ function removeAllVehicles(){
     })
     vehicles = {}
 }
+function updateUserPosition(){
+    const options = {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0,
+    };
+    navigator.geolocation.getCurrentPosition((posObj)=>{
+        let pos = [posObj.coords.latitude, posObj.coords.longitude]
 
+        if(userMarker == null){
+            userMarker = L.circleMarker(pos, {
+                radius: 8,
+                fillColor: "#428cf4",
+                color: "#ffffff",
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 1
+            })
+            userMarker.addTo(map)
+            map.setView(pos, 15)
+        }
+        userMarker.setLatLng(pos)
+    },
+    (error)=>{console.error(error)},options);
+}
+
+setInterval(() => {
+    updateUserPosition()
+}, 1_000); // 10s
+updateUserPosition()
