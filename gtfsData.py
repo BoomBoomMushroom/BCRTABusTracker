@@ -78,6 +78,5 @@ class GTFS_DataFetcher:
             self.onNewFeedCallback(self.feed)
 
 if __name__ == "__main__":
-    print(transitClasses.getDateStr())
     pass
 
