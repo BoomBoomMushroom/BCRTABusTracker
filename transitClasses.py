@@ -1,3 +1,4 @@
+from __future__ import annotations
 from google.transit import gtfs_realtime_pb2
 from typing import Literal
 import csv

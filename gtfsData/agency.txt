@@ -1,2 +1,0 @@
-agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_phone,agency_fare_url,agency_email
-222,"BCRTA",https://www.butlercountyrta.com/,America/New_York,en-US,513.785.5237,https://www.butlercountyrta.com/bgo-curb-to-curb/fare-price-breakdown/,request@butlercountyrta.com
