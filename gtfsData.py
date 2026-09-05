@@ -59,6 +59,7 @@ class GTFS_DataFetcher:
         transitClasses.Route.generateRoutesFromFile(f"{GTFS_DATA_PATH}/routes.txt")
         transitClasses.Shape.generateShapesFromFile(f"{GTFS_DATA_PATH}/shapes.txt")
         transitClasses.Trip.generateTripsFromFile(f"{GTFS_DATA_PATH}/trips.txt")
+        transitClasses.StopTime.generateTripStopsTimesFromFile(f"{GTFS_DATA_PATH}/stop_times.txt")
         self.feed: transitClasses.Feed = None
         self.feedThread = threading.Thread(target=self.updateFeedLoop, args=(), daemon=True)
         self.feedThread.start()
@@ -74,5 +75,5 @@ class GTFS_DataFetcher:
             self.onNewFeedCallback(self.feed)
 
 if __name__ == "__main__":
-
     pass
+

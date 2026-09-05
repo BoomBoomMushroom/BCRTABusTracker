@@ -5,6 +5,13 @@ import csv
 OccupancyStatus = Literal["EMPTY", "MANY_SEATS_AVAILABLE", "FEW_SEATS_AVAILABLE", "STANDING_ROOM_ONLY", "CRUSHED_STANDING_ROOM_ONLY", "FULL", "NOT_ACCEPTING_PASSENGERS", "NO_DATA_AVAILABLE", "NOT_BOARDABLE"]
 OccupancyStatusFromNum: list[OccupancyStatus] = ["EMPTY", "MANY_SEATS_AVAILABLE", "FEW_SEATS_AVAILABLE", "STANDING_ROOM_ONLY", "CRUSHED_STANDING_ROOM_ONLY", "FULL", "NOT_ACCEPTING_PASSENGERS", "NO_DATA_AVAILABLE", "NOT_BOARDABLE"]
 
+def hhmmssToSeconds(hhmmss: str) -> int:
+    splits = hhmmss.split(":")
+    hours = int(splits[0])
+    minutes = int(splits[1])
+    seconds = int(splits[2])
+    return (hours * 60*60) + (minutes*60) + seconds
+
 class Feed:
     def __init__(self, feedObj: gtfs_realtime_pb2.FeedMessage):
         self.timestamp: int = int(feedObj.header.timestamp)
@@ -129,12 +136,19 @@ class Trip:
     def getAllTripsJson(cls) -> list[Trip]:
         return [t.toJson() for t in list(cls.trips.values())]
 
+    @classmethod
+    def addStopTimeToCorrectTrip(cls, stopTime: StopTime):
+        t: Trip = cls.getTripFromId(stopTime.tripId)
+        t.stopTimes.append(stopTime)
+        cls.trips[t.id] = t
+
     def __init__(self, id, routeId, direction, shapeId):
         self.id: str = id
         self.routeId: str = routeId
         self.direction: str = direction # 0 is one direction (ex. outbound), and 1 is the opposite (ex. inbound)
         self.shapeId: str = shapeId # id for a geojson route shape from shapes.json
 
+        self.stopTimes: list[StopTime] = []
         self.route: Route = Route.getRouteFromId(self.routeId)
         self.shape: Shape = Shape.getShapeFromId(self.shapeId)
 
@@ -146,10 +160,9 @@ class Trip:
             "id": self.id,
             "direction": self.direction,
 
+            "stopTimes": [st.toJson() for st in self.stopTimes],
             "routeId": self.routeId,
             "shapeId": self.shapeId,
-            #"route": self.route.toJson(),
-            #"shape": self.shape.toJson(),
         }
 
     def getRoute(self) -> Route: return self.route
@@ -241,4 +254,43 @@ class Stop:
             "lon": self.lon,
         }
 
+class StopTime:
+    @classmethod
+    def generateTripStopsTimesFromFile(cls, filePath: str):
+        with open(filePath, "r") as f:
+            data = csv.DictReader(f)
+            for row in data:
+                tripStops = StopTime(
+                    row["trip_id"], row["stop_id"],
+                    row["arrival_time"], row["departure_time"],
+                    row["stop_sequence"], row["timepoint"]
+                )
+                Trip.addStopTimeToCorrectTrip(tripStops)
+
+    def __init__(self, tripId, stopId, arrivalTime, departureTime, stopSequence, timepoint):
+        self.tripId: str = tripId
+        self.stopId: str = stopId
+        # times are in HH:MM:SS, 24hr format
+        self.arrivalTime: str = arrivalTime
+        self.departureTime: str = departureTime
+        # seconds since midnight that day, like 0 -> 86,400 (60*60*24)
+        self.arrivalTimeSeconds: int = hhmmssToSeconds(arrivalTime)
+        self.departureTimeSeconds: int = hhmmssToSeconds(departureTime)
+        self.stopSequence: str = int(stopSequence) # stop number in the sequence of stop
+        self.isTimeExact: bool = timepoint=="1" # 0=approx, 1=exact
+
+    def __str__(self):
+        return ""
+
+    def toJson(self):
+        return {
+            "tripId": self.tripId,
+            "stopId": self.stopId,
+            "arrivalTime": self.arrivalTime,
+            "departureTime": self.departureTime,
+            "arrivalTimeSeconds": self.arrivalTimeSeconds,
+            "departureTimeSeconds": self.departureTimeSeconds,
+            "stopSequence": self.stopSequence,
+            "isTimeExact": self.isTimeExact
+        }
 

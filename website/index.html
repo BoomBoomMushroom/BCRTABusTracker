@@ -36,10 +36,13 @@
                 
                 background: #000;
                 
-                display: flex;
+                display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                margin: 0;
+                
+                /* margin: 0; */
+                margin: 0 5px 0 0;
+                vertical-align: middle;
             }
 
             .vehicleInfo{
@@ -201,7 +204,8 @@
                 })
             }
             function createBusStopIcon(stopId){
-                let marker = L.marker(stops[stopId].getPosition(), { icon: getBusStopIcon() })
+                // -100 zindex to prioritize the bus, and still be above the bus's arrows
+                let marker = L.marker(stops[stopId].getPosition(), { icon: getBusStopIcon(), zIndexOffset: -100, })
                 marker.bindPopup(stops[stopId].getPopupText())
                 marker.addTo(map)
                 return marker
@@ -242,6 +246,7 @@
         </script>
         <script>
             // gtfsClasses.js
+            let use24HrClock = false
             let OccupancyStatus = {
                 "EMPTY": "Empty",
                 "MANY_SEATS_AVAILABLE": "Many seats available",
@@ -261,6 +266,7 @@
                     this.desc = stopObj.desc
                     this.lat = stopObj.lat
                     this.lon = stopObj.lon
+                    this.tripStops = []
 
                     this.icon = null
                 }
@@ -272,7 +278,33 @@
                 getPopupText(){
                     let text = `<h4>${this.name}</h4>`
                     if(this.desc != ""){ text += `\n${this.desc}` }
+                    this.tripStops.forEach(ts=>{
+                        let trip = trips[ts.tripId]
+                        let route = routes[trip.getRouteId()]
+                        let timePrefix = ts.isTimeExact ? "" : "Approx ~"
+                        let style = `style="background-color: #${route.color}; color: #${route.textColor};"`
+                        text += `\n
+                        <span class="routeLabel" ${style}>${route.shortName}</span>
+                        <span>${timePrefix}${clock24HrToPrefered(ts.arrivalTime)}</span>
+                        <br><br>
+                        `
+                    })
                     return text
+                }
+
+                addTripStop(tripStopObject){
+                    this.tripStops.push(tripStopObject)
+                }
+                sortScheduledStops(){
+                    // ascending order, flip `b` and `a` for descending order
+                    this.tripStops.sort((a,b)=>{return a.arrivalTimeSeconds - b.arrivalTimeSeconds})
+                }
+                onScheduleUpdated(){
+                    if(this.tripStops.length == 0){
+                        map.removeLayer(this.icon) // calling this many times seemingly is fine
+                        return; // no more stops, that about all we can do
+                    }
+                    this.icon.bindPopup(this.getPopupText()) // update the text
                 }
 
                 getId(){return this.id }
@@ -314,18 +346,22 @@
                 constructor(tripObj){
                     this.id = tripObj.id
                     this.direction = tripObj.direction
+                    this.stopTimes = tripObj.stopTimes
                     this.routeId = tripObj.routeId
                     this.shapeId = tripObj.shapeId
 
                     // we should now init our route w/ its shape
                     r = this.getRoute()
-                    //if(r.polyLine == null){
                     if(r.polyLine[this.getShapeId()] == null){
                         s = this.getShape()
                         r.polyLine[this.getShapeId()] = createRoutePolyline(s.getPoints(), r.getColor())
                         routes[r.getId()] = r
                     }
 
+                    // set stops that will happen in the corresponding Stop data data
+                    this.stopTimes.forEach(st=>{
+                        stops[st["stopId"]].addTripStop(st)
+                    })
                 }
                 getId(){ return this.id }
                 getDirection(){ return this.direction }
@@ -358,13 +394,14 @@
                 }
 
                 onUpdate(){
-                    // TODO: trigger stuff like moving the marker
                     if(this.icon == null){
                         this.icon = createVehicleIcon(this.getId())
                     }
                     if(this.directionArrow == null){
                         this.directionArrow = createDirectionArrow(this.getId())
                     }
+                    // TODO: seemingly after 11pm the route of some of the last buses change and then they freeze
+                    //      Maybe we need to check if they're trip is gone, or if they're missing from the list
                     if(this.getTrip().getRoute().isRouteShown == false){
                         // we dont want to view this bus, so we're gonna put them in the middle of the ocean
                         this.lat = 0
@@ -391,14 +428,74 @@
                     let trip = this.getTrip()
                     let route = trip.getRoute()
 
-                    let label = `<p class="routeLabel" style="color: #${route.getTextColor()}; background-color: #${route.getColor()}">${route.getShortName()}</p>`
-                    let info = `<p>Seats: ${OccupancyStatus[this.getOccupancyStatus()]}</p>`
+                    let label = `<span class="routeLabel" style="color: #${route.getTextColor()}; background-color: #${route.getColor()}">${route.getShortName()}</span>`
+                    let info = `<span><strong>Seats</strong>: ${OccupancyStatus[this.getOccupancyStatus()]}</span>`
 
+
+                    // TODO: remove this bearing and make each piece of info in-line
                     return `<div style='vehicleInfo'>
-                        ${label} ${info} ${this.bearing}deg CW of north
+                        ${label}
+                        <div>
+                            <strong>Next Stop</strong>: Farmer Business School
+                            <br>${info}
+                        </div>
                     </div>`
                 }
             }
+        
+        </script>
+        <script>
+            // index.js
+            function getTimeSinceMidnight(){
+                let date = new Date()
+                return (date.getHours() * 60*60) + (date.getMinutes() * 60) + date.getSeconds()
+            }
+
+            function clock24HrToPrefered(hhmmss){
+                if(use24HrClock){ return hhmmss }
+
+                let postfix = "am"
+                splits = hhmmss.split(":")
+                hours = parseInt(splits[0])
+                if(hours > 12){
+                    hours -= 12
+                    postfix = "pm"
+                }
+                return `${hours}:${splits[1]}:${splits[2]}${postfix}`
+            }
+
+            function removeOldStops(sinceMidnight=0){
+                Object.keys(stops).forEach(sId=>{
+                    let s = stops[sId]
+                    let i = 0
+                    while(i<s.tripStops.length){
+                        let ts = s.tripStops[i]
+                        // we'll leave it still there for ~2 minutes afterwards, incase the bus is running a bit late
+                        if(ts.arrivalTimeSeconds+120 > sinceMidnight){ break; }
+                        i++;
+                    }
+                    if(i != 0){
+                        s.tripStops = s.tripStops.splice(i)
+                        s.onScheduleUpdated()
+                    }
+                })
+            }
+            function newMinute(){
+                // code that triggers at the start of every minute
+                let sinceMidnight = getTimeSinceMidnight()
+                // check if we're now within 1m:50s of midnight and if so, refresh the page so we can get our stops back
+                if(sinceMidnight < 110){
+                    console.log("Midnight has just passed, refreshing to get list of stops back")
+                    document.location.reload()
+                }
+
+                removeOldStops(sinceMidnight)
+                
+            }
+            setTimeout(() => {
+                newMinute()
+                setInterval(newMinute, 60_000)
+            }, 60_000 - (Date.now()%60_000)); // initial delay to sync us to the minute
         </script>
         <script>
             // socket.js
@@ -419,7 +516,7 @@
 
             ws.onmessage = (e)=>{
                 let data = JSON.parse(e.data)
-                console.log(data)
+                let printData = true
 
                 let type = data["type"]
                 let packetData = data["data"]
@@ -453,8 +550,13 @@
                     Object.keys(routes).forEach(rId=>{
                         addRouteToControl(rId)
                     })
+                    Object.keys(stops).forEach(sId=>{
+                        stops[sId].sortScheduledStops()
+                    })
+                    removeOldStops(getTimeSinceMidnight())
                 }
                 else if(type == "feed"){
+                    printData = false // dont print the 1 million feed packets we're gonna get
                     dataMadeTime = packetData["timestamp"]
                     packetData["vehicles"].forEach(vehicleData => {
                         vId = vehicleData.id
@@ -477,6 +579,8 @@
                 else{
                     consle.error("Unknown type of packet!!")
                 }
+
+                if(printData){ console.log(data) }
             }
 
         </script>
