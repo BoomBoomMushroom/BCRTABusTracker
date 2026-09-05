@@ -45,8 +45,10 @@ let routeControl = L.control({position: "topright"})
 routeControl.onAdd = (map) => {
     let div = L.DomUtil.create("div", "routeControl")
     div.innerHTML = `
-        <div class="routeTitle"><strong>Routes</strong></div>
-        <div id="routeList"></div>
+        <details open>
+            <summary><span class="routeTitle"><strong>Routes</strong></span></summary>
+            <div id="routeList"></div>
+        </details>
     `;
     L.DomEvent.disableClickPropagation(div)
     return div
