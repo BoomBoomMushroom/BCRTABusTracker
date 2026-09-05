@@ -21,6 +21,7 @@ def onNewFeedCallback(transitFeed: transitClasses.Feed, specificClient=None):
 
 def onClientJoined(client, server: WebsocketServer):
     print(f"{client['address']} has joined!")
+    fetcher.clientCount += 1
     # inform the user of all the shapes & routes info, a static registry that is referenced by trip & vehicle data
     stopsPacket = {
         "type": "stopsInfo",
@@ -46,6 +47,7 @@ def onClientJoined(client, server: WebsocketServer):
     if fetcher.feed != None: onNewFeedCallback(fetcher.feed)
 
 def onClientLeft(client, server: WebsocketServer):
+    fetcher.clientCount -= 1
     print(f"{client['address']} has left!")
 
 def onMessage(client, server: WebsocketServer, message):

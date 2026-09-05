@@ -51,6 +51,7 @@ def getVehicleData() -> transitClasses.Feed:
 
 class GTFS_DataFetcher:
     def __init__(self, onNewFeedCallback):
+        self.clientCount = 0
         self.onNewFeedCallback = onNewFeedCallback
         checkAndFetchGTFSData() # update our static data first before loading anything, since they pull from the static data
 
@@ -71,6 +72,7 @@ class GTFS_DataFetcher:
         # TODO: dont fetch data if we dont have clients connected to send the data to
         while True:
             time.sleep(0.25)
+            if 0 >= self.clientCount: continue # if 0 or negative then we have no one to send the data to, dont waste bandwidth and dont send data
             try:
                 self.feed = getVehicleData()
             except: self.feed = None # failed to make the request
