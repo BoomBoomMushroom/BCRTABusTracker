@@ -5,4 +5,4 @@
 # TODOs:
 - maybe turn it into more of a usable app on your phone, a PWA. So it'll be easy to open and use.
 - once we get errors from the vehicle pos fetch we should maybe report that to the clients and let them know somethings wrong
-
+- search stops by name?

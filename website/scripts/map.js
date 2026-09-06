@@ -17,9 +17,10 @@ let trips = {} // key,val = tripId, Trip
 let vehicles = {} // key,val = vehicleId, Vehicle
 let userMarker = null
 
+let mapLayer = null
 if(useLibertyMap){
     // this looks cleaner imo
-    let mapLayer = L.maplibreGL({
+    mapLayer = L.maplibreGL({
         style: 'https://tiles.openfreemap.org/styles/liberty',
     }).addTo(map);
     mapLayer.getMaplibreMap().on("load", () => {
