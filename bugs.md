@@ -1,0 +1,2 @@
+- sometimes the ETA time passes it turns into empty text and then "-1hr and -59mins"
+- for some reason the buses feed freezes/not updates, it know the api is still up since routes & trips still come. I think it might be getting rate limited??
