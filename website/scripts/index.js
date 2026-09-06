@@ -64,16 +64,27 @@ function getTimeSinceMidnight(){
     let date = new Date()
     return (date.getHours() * 60*60) + (date.getMinutes() * 60) + date.getSeconds()
 }
-function clock24HrToPrefered(hhmmss){
-    if(use24HrClock){ return hhmmss }
-
+function clock24HrToPrefered(hhmmss, removeZeroSeconds=false){
+    
+    
     splits = hhmmss.split(":")
-    hours = parseInt(splits[0])
+    let hours = parseInt(splits[0])
+    let minutes = parseInt(splits[1])
+    let seconds = parseInt(splits[2])
+
+    if(use24HrClock){
+        if(removeZeroSeconds && seconds==0){ hhmmss = `${splits[0]}:${splits[1]}` }
+        return hhmmss
+    }
+    
+
     let postfix = hours >= 12 ? "pm" : "am"
     if(hours > 12){
         hours -= 12
     }
-    return `${hours}:${splits[1]}:${splits[2]}${postfix}`
+    let out = `${hours}:${splits[1]}`
+    if(removeZeroSeconds == false || seconds != 0){ out += `:${splits[2]}` }
+    return out + postfix
 }
 function secondsUntil(hhmmss){
     let arriveTime = hhmmssToSecondsSinceMidnight(hhmmss)
@@ -86,6 +97,9 @@ function secondsToCountdownTime(seconds){
     seconds -= hours*60*60
     let minutes = Math.floor(seconds / 60)
     seconds -= minutes*60
+
+    // round up the seconds
+    if(seconds >= 30){ minutes += 1 }
 
     out = ""
     if(hours != 0){
@@ -109,8 +123,8 @@ function removeOldStops(sinceMidnight=0){
             let ts = s.tripStops[i]
             // this is an exact time, remove the value immediately
             if(ts.isTimeExact && ts.arrivalTimeSeconds > sinceMidnight){ break; }
-            // we'll leave it still there for ~2 minutes afterwards, incase the bus is running a bit late
-            if(ts.arrivalTimeSeconds+120 > sinceMidnight){ break; }
+            // we'll leave it still there for ~1 minute afterwards, incase the bus is running a bit late
+            if(ts.arrivalTimeSeconds+60 > sinceMidnight){ break; }
             i++;
         }
         if(i != 0){

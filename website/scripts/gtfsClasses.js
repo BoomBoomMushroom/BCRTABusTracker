@@ -19,6 +19,9 @@ class Stop{
         this.lon = stopObj.lon
         this.tripStops = []
 
+        // a list of stop times that are exact.
+        //   for pruning extronious times because of route changes (ex. O1 Outbound turns into O1 Inbound)
+        this.seenExactTimes = []
         this.icon = null
     }
 
@@ -28,7 +31,7 @@ class Stop{
     }
     getPopupText(){
         let descText = this.desc
-        descText += "The time table is scrollable!"
+        descText += "The time tables are scrollable!"
 
         let text = `
         <div style="min-width: 200px; margin-bottom: 5px;">
@@ -54,10 +57,14 @@ class Stop{
                 `
                 // end that route text with </div></details>
             }
+
+            let timePreferredStr = clock24HrToPrefered(ts.arrivalTime, removeZeroSecondsFromStopTime)
+            let secondsUntilArrival = secondsUntil(ts.arrivalTime)
+            let timeUntilArrivalStr = (secondsUntilArrival > 30) ? `in ${secondsToCountdownTime(secondsUntilArrival)}` : "now"
             routeText += `\n
-            <span>${timePrefix}${clock24HrToPrefered(ts.arrivalTime)}</span>
+            <span>${timePrefix}${timePreferredStr}</span>
             <br>
-            <span style="margin-left: 20px; margin-bottom:15px;">Arrives in ${secondsToCountdownTime(secondsUntil(ts.arrivalTime))}</span>
+            <span style="margin-left: 20px; margin-bottom:15px;">Arrives ${timeUntilArrivalStr}</span>
             <br>
             `
             routeDropdowns[route.shortName] = routeText
@@ -73,6 +80,14 @@ class Stop{
     }
 
     addTripStop(tripStopObject){
+        // for stops that have exact times that is when the bus is changing it's shape (ex. inbound turns into outbound)
+        //   so we can remove the duplicates from the list safely
+        if(tripStopObject.isTimeExact){
+            let arrivalTime = tripStopObject.arrivalTimeSeconds
+            if(this.seenExactTimes.includes(arrivalTime)){ return }
+            this.seenExactTimes.push(arrivalTime)
+        }
+
         this.tripStops.push(tripStopObject)
     }
     sortScheduledStops(){
@@ -174,6 +189,7 @@ class Trip{
         }
 
         // set stops that will happen in the corresponding Stop data data
+        
         this.stopTimes.forEach(st=>{
             stops[st["stopId"]].addTripStop(st)
         })
