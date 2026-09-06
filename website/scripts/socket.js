@@ -1,6 +1,7 @@
 let ws = null
 
 function reconnectWebsocket(){
+    console.log(API_URL)
     ws = new WebSocket(API_URL)
     
     ws.onopen = (e)=>{
