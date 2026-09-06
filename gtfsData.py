@@ -8,6 +8,7 @@ LAST_FETCH_GTFS_DATA_FILE = f"{GTFS_DATA_PATH}/_lastFetch.txt"
 USE_PLACEHOLDER_VEHICLE_POSITION_DATA = False
 
 import time
+import datetime
 import zipfile
 import io
 import requests
@@ -37,8 +38,11 @@ def checkAndFetchGTFSData():
 
 def getVehicleData() -> transitClasses.Feed:
     feed = gtfs_realtime_pb2.FeedMessage()
-    response = requests.get("https://www.buztrakr.com/gtfs-rt/vehiclepositions")
-    if response.status_code != 200: return None # if not 200, something went wrong, from my testing a 503
+    response = requests.get(GTFS_VEHICLES_API)
+    if response.status_code != 200:
+        date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"\t({date}) [FETCH FAILURE] Failed to get vehiclepositions, fetch response data: {response.status_code=} | {response.content=}")
+        return None # if not 200, something went wrong, from my testing a 503
     responseData = response.content
 
     if USE_PLACEHOLDER_VEHICLE_POSITION_DATA:
