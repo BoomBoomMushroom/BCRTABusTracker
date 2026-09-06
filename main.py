@@ -48,7 +48,11 @@ def onClientJoined(client, server: WebsocketServer):
 
 def onClientLeft(client, server: WebsocketServer):
     fetcher.clientCount -= 1
-    print(f"{client['address']} has left!")
+    address = "UNKNOWN"
+    try: address = client['address']
+    except: pass
+    print(f"{address} has left!")
+
 
 def onMessage(client, server: WebsocketServer, message):
     pass
