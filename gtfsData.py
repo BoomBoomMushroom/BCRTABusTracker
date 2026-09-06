@@ -9,6 +9,7 @@ USE_PLACEHOLDER_VEHICLE_POSITION_DATA = False
 
 import time
 import datetime
+from zoneinfo import ZoneInfo
 import zipfile
 import io
 import requests
@@ -40,7 +41,8 @@ def getVehicleData() -> transitClasses.Feed:
     feed = gtfs_realtime_pb2.FeedMessage()
     response = requests.get(GTFS_VEHICLES_API)
     if response.status_code != 200:
-        date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now = datetime.datetime.fromtimestamp(time.time(), tz=ZoneInfo("America/New_York"))
+        date = now.strftime("%Y-%m-%d %H:%M:%S")
         print(f"\t({date}) [FETCH FAILURE] Failed to get vehiclepositions, fetch response data: {response.status_code=} | {response.content=}")
         return None # if not 200, something went wrong, from my testing a 503
     responseData = response.content
