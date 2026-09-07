@@ -174,7 +174,7 @@ function removeAllVehicles(){
 }
 
 let positionUpdateInterval = null
-function updateUserPosition(){
+function updateUserPosition(isFromInterval=true){
     const options = {
         enableHighAccuracy: true,
         timeout: 5000,
@@ -199,6 +199,7 @@ function updateUserPosition(){
     },
     (error)=>{
         console.error(error)
+        if(isFromInterval == false){return}
         clearInterval(positionUpdateInterval)
 
         // wait 5 seconds before trying again
@@ -211,7 +212,7 @@ function updateUserPosition(){
     },options);
 }
 
+updateUserPosition(false)
 positionUpdateInterval = setInterval(() => {
     updateUserPosition()
 }, 1_000); // 10s
-updateUserPosition()
