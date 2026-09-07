@@ -200,6 +200,7 @@ function updateUserPosition(isFromInterval=true){
     (error)=>{
         console.error(error)
         if(isFromInterval == false){return}
+        return // nvm this is fucked up, its sends a million reqs; ill fix it later
         clearInterval(positionUpdateInterval)
 
         // wait 5 seconds before trying again
@@ -207,6 +208,7 @@ function updateUserPosition(isFromInterval=true){
             positionUpdateInterval = setInterval(() => {
                 updateUserPosition()
             }, 1_000); // 10s
+            updateUserPosition()
         }, 5000);
     },options);
 }
@@ -214,4 +216,4 @@ function updateUserPosition(isFromInterval=true){
 updateUserPosition(false)
 positionUpdateInterval = setInterval(() => {
     updateUserPosition()
-}, 1000);
+}, 1_000); // 10s
