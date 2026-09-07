@@ -172,6 +172,8 @@ function removeAllVehicles(){
     })
     vehicles = {}
 }
+
+let positionUpdateInterval = null
 function updateUserPosition(){
     const options = {
         enableHighAccuracy: true,
@@ -191,14 +193,25 @@ function updateUserPosition(){
                 fillOpacity: 1
             })
             userMarker.addTo(map)
-            map.setView(pos, 15)
+            map.setView(pos, 15) // move the map to center on them once when we first load them
         }
         userMarker.setLatLng(pos)
     },
-    (error)=>{console.error(error)},options);
+    (error)=>{
+        console.error(error)
+        clearInterval(positionUpdateInterval)
+
+        // wait 5 seconds before trying again
+        setTimeout(() => {
+            positionUpdateInterval = setInterval(() => {
+                updateUserPosition()
+            }, 1_000); // 10s
+            updateUserPosition()
+        }, 5000);
+    },options);
 }
 
-setInterval(() => {
+positionUpdateInterval = setInterval(() => {
     updateUserPosition()
 }, 1_000); // 10s
 updateUserPosition()
