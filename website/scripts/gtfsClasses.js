@@ -279,9 +279,9 @@ class Vehicle{
     }
     updatePosition(){
         let pos = this.getPosition()
-        this.icon.setLatLng( this.getPosition() )
-        this.directionArrow.setLatLng( this.getPosition() )
-        this.directionArrow.getElement().querySelector(".arrow").style.transform = `rotate(${v.getBearing()}deg)`
+        this.icon.setLatLng( pos )
+        this.directionArrow.setLatLng( pos )
+        this.directionArrow.getElement().querySelector(".arrow").style.transform = `rotate(${this.getBearing()}deg)`
     }
 
     calculateNextStop(){
