@@ -46,7 +46,7 @@ function reloadMapLayer(){
     }
 }
 
-let focusOutTime = 0
+let focusOutTime = Date.now()
 document.addEventListener("focusout", (e)=>{
     focusOutTime = Date.now()
 })
