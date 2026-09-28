@@ -54,7 +54,7 @@ document.addEventListener("focusin", (e)=>{
     let dt = Date.now() - focusOutTime
     console.log(`Been off of the page for ${dt} seconds`)
     // if we've been off of the page for 30+ seconds then reload the map
-    if(dt >= 30){
+    if(dt >= 30 * 1000){
         reloadMapLayer()
     }
 })
