@@ -18,29 +18,60 @@ let vehicles = {} // key,val = vehicleId, Vehicle
 let userMarker = null
 
 let mapLayer = null
-if(useLibertyMap){
-    // this looks cleaner imo
-    mapLayer = L.maplibreGL({
-        style: 'https://tiles.openfreemap.org/styles/liberty',
-    }).addTo(map);
-    mapLayer.getMaplibreMap().on("load", () => {
-        let mlMap = mapLayer.getMaplibreMap()
-        mlMap.getStyle().layers.forEach(layer => {
-            if(layer.type === "fill-extrusion"){
-                mlMap.setPaintProperty(layer.id, "fill-extrusion-height", 0)
-                mlMap.setPaintProperty(layer.id, "fill-extrusion-base", 0)
-            }
+function reloadMapLayer(){
+    console.log("(re)loading the map!")
+    if(mapLayer != null){ map.removeLayer(mapLayer) }
+
+    if(useLibertyMap){
+        // this looks cleaner imo
+        mapLayer = L.maplibreGL({
+            style: 'https://tiles.openfreemap.org/styles/liberty',
+        }).addTo(map);
+        mapLayer.getMaplibreMap().on("load", () => {
+            let mlMap = mapLayer.getMaplibreMap()
+            mlMap.getStyle().layers.forEach(layer => {
+                if(layer.type === "fill-extrusion"){
+                    mlMap.setPaintProperty(layer.id, "fill-extrusion-height", 0)
+                    mlMap.setPaintProperty(layer.id, "fill-extrusion-base", 0)
+                }
+            })
         })
-    })
-}
-else{
-    // the original map
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(map);
+    }
+    else{
+        // the original map
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+    }
 }
 
+let focusOutTime = 0
+document.addEventListener("focusout", (e)=>{
+    focusOutTime = Date.now()
+})
+document.addEventListener("focusin", (e)=>{
+    let dt = Date.now() - focusOutTime
+    console.log(`Been off of the page for ${dt} seconds`)
+    // if we've been off of the page for 30+ seconds then reload the map
+    if(dt >= 30){
+        reloadMapLayer()
+    }
+})
+reloadMapLayer()
+
+let dateControl = L.control({position: "topright"})
+dateControl.onAdd = (map) => {
+    let div = L.DomUtil.create("div", "dateControl")
+    div.innerHTML = `
+    <label for="viewDate"><strong>Change Date</strong></label>
+    <br>
+    <input name="viewDate" id="viewDate" type="date" style="margin-top: 5px;">
+    `;
+    L.DomEvent.disableClickPropagation(div)
+    return div
+}
+dateControl.addTo(map)
 
 let routeControl = L.control({position: "topright"})
 routeControl.onAdd = (map) => {

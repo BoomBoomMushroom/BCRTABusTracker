@@ -24,41 +24,46 @@ def onNewFeedCallback(transitFeed: transitClasses.Feed, specificClient=None):
         server.send_message(specificClient, msg)
 
 def onClientJoined(client, server: WebsocketServer):
-    print(f"{client['address']} has joined!")
     fetcher.clientCount += 1
-    # inform the user of all the shapes & routes info, a static registry that is referenced by trip & vehicle data
-    stopsPacket = {
-        "type": "stopsInfo",
-        "data": transitClasses.Stop.getAllStopsJson()
-    }
-    shapesPacket = {
-        "type": "shapesInfo",
-        "data": transitClasses.Shape.getAllShapesJson()
-    }
-    routesPacket = {
-        "type": "routesInfo",
-        "data": transitClasses.Route.getAllRoutesJson()
-    }
-    tripsPacket = {
-        "type": "tripsInfo",
-        "data": transitClasses.Trip.getAllTripsJson()
-    }
-
-    server.send_message(client, json.dumps(stopsPacket))
-    server.send_message(client, json.dumps(shapesPacket))
-    server.send_message(client, json.dumps(routesPacket))
-    server.send_message(client, json.dumps(tripsPacket))
-    if fetcher.feed != None: onNewFeedCallback(fetcher.feed, client)
+    print(f"{client['address']} has joined! Client count: {fetcher.clientCount}")
 
 def onClientLeft(client, server: WebsocketServer):
     fetcher.clientCount -= 1
     address = "UNKNOWN"
     try: address = client['address']
     except: pass
-    print(f"{address} has left!")
+    print(f"{address} has left! Client count: {fetcher.clientCount}")
 
 def onMessage(client, server: WebsocketServer, message):
-    pass
+    msg = json.loads(message)
+    msgType = msg["type"]
+    if msgType == "requestDate":
+        yyyymmdd = msg["date"]
+        
+        # inform the user of all the shapes & routes info, a static registry that is referenced by trip & vehicle data
+        stopsPacket = {
+            "type": "stopsInfo",
+            "data": transitClasses.Stop.getAllStopsJson()
+        }
+        shapesPacket = {
+            "type": "shapesInfo",
+            "data": transitClasses.Shape.getAllShapesJson()
+        }
+        routesPacket = {
+            "type": "routesInfo",
+            "data": transitClasses.Route.getAllRoutesJson()
+        }
+        tripsPacket = {
+            "type": "tripsInfo",
+            "data": transitClasses.Trip.getAllTripsJson(yyyymmdd) # override the date if they want us to
+        }
+    
+        server.send_message(client, json.dumps(stopsPacket))
+        server.send_message(client, json.dumps(shapesPacket))
+        server.send_message(client, json.dumps(routesPacket))
+        server.send_message(client, json.dumps(tripsPacket))
+        if fetcher.feed != None: onNewFeedCallback(fetcher.feed, client)
+        
 
 def startWebsocketServer():
     global server
@@ -109,4 +114,7 @@ if __name__ == "__main__":
 
         print("Restarting server...")
 
+# TODO: store the stops and routes and stuff inside of browser cookies. and have them expire at midnight each day
+# TODO: make the client send the current day (or whichever day they want to view) to init the handshake and get the data
+# TODO: make a connection status, red=not connected, yellow=connecting w/ 1 of x for all the states, and green=connected
 

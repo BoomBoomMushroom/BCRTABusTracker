@@ -21,8 +21,15 @@ def getTodayObject() -> datetime.datetime:
     # today at our lovely timezone
     return datetime.datetime.fromtimestamp(time.time(), tz=ZoneInfo("America/New_York"))
 
+def getDateFromYYYYMMDD(yyyymmdd) -> datetime.datetime:
+    y = int(yyyymmdd[0:4])
+    m = int(yyyymmdd[4:6])
+    d = int(yyyymmdd[6:])
+    date = datetime.datetime(year=y, month=m, day=d)
+    return date
+
 def getDayNum(date: datetime.datetime) -> int:
-    # use this to get it to be 0-6, Sun-Sat like javscript'
+    # use this to get it to be 0-6, Sun-Sat like javascript'
     weekday = int(date.strftime('%w'))
     return weekday
 
@@ -150,8 +157,8 @@ class Trip:
         return t
 
     @classmethod
-    def getAllTripsJson(cls) -> list[Trip]:
-        return [t.toJson() for t in list(cls.trips.values()) if t.isOfferedToday()]
+    def getAllTripsJson(cls, overrideDate: str=None) -> list[Trip]:
+        return [t.toJson() for t in list(cls.trips.values()) if t.isOfferedToday(overrideDate)]
 
     @classmethod
     def addStopTimeToCorrectTrip(cls, stopTime: StopTime):
@@ -173,15 +180,17 @@ class Trip:
     def __str__(self):
         return self.getRoute().shortName
 
-    def isOfferedToday(self):
+    def isOfferedToday(self, overrideDateStr: str=None):
         date = getTodayObject()
+        if overrideDateStr != None: date = getDateFromYYYYMMDD(overrideDateStr)
         sId = self.serviceId
-        dateStr = getDateStr(date)
+        dateStr: str = getDateStr(date)
 
         # check if that route has been overridden to be active or not today
         exception = ServiceCalendar.exceptions.get(dateStr, {}).get(self.serviceId, None)
         if exception != None: return exception
 
+        # todo: make it get the day from the yyyymmdd
         sc: ServiceCalendar = ServiceCalendar.getServiceCalendarFromId(sId)
         return sc.activeDays[getDayNum(date)]
 
@@ -365,5 +374,4 @@ class ServiceCalendar:
         self.id: str = serviceId
         # do sunday first since (new Date()).getDay() returns a num 0-6, Sun -> Sat
         self.activeDays: list[bool] = [sunday, monday, tuesday, wednesday, thursday, friday, saturday]
-
 

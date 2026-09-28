@@ -1,3 +1,16 @@
+.leaflet-top.leaflet-right {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.leaflet-top.leaflet-right .leaflet-control {
+    margin-top: 10px;
+    margin-right: 10px;
+}
+
+
 #map{
     position: absolute;
     left: 0px;
@@ -6,7 +19,7 @@
     height: 100%;
 }
 
-.routeControl{
+.routeControl, .dateControl{
     background-color: white;
     padding: 5px;
 }

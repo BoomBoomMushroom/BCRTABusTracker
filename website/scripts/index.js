@@ -45,6 +45,29 @@ function getClosestStopAndDistFromLatLon(pos){
     return [closestStop, shortestDist]
 }
 
+function setViewDateValueToToday(){
+    // make it today
+    let ele = document.getElementById("viewDate")
+    let str = getDateYYYYMMDD()
+    let val = str.substring(0,4) + "-" + str.substring(4,6) + "-" + str.substring(6,8)
+    ele.value = val
+}
+function getDateValueYYYYMMDD(){
+    // val = YYYY-MM-DD
+    let val = document.getElementById("viewDate").value
+    if(val == ""){
+        setViewDateValueToToday()
+        return getDateValueYYYYMMDD();
+    }
+    return val.replaceAll("-", "")
+}
+function getDateYYYYMMDD(){
+    let date = new Date()
+    let yyyy = ('0000'+date.getFullYear()).slice(-4);
+    let mm = ('00'+(date.getMonth()+1)).slice(-2);
+    let dd = ('00'+date.getDate()).slice(-2);
+    return yyyy+mm+dd
+}
 function getTimeHHMMSS(){
     let date = new Date()
     let hrs = ('00'+date.getHours()).slice(-2);
@@ -64,7 +87,7 @@ function getTimeSinceMidnight(){
     let date = new Date()
     return (date.getHours() * 60*60) + (date.getMinutes() * 60) + date.getSeconds()
 }
-function clock24HrToPrefered(hhmmss, removeZeroSeconds=false){
+function clock24HrToPreferred(hhmmss, removeZeroSeconds=false){
     
     
     splits = hhmmss.split(":")
@@ -173,6 +196,7 @@ function removeAllVehicles(){
     vehicles = {}
 }
 
+// todo: add a backoff thing, only poll every 5s until we don't get errors, then poll every 1s
 let positionUpdateInterval = null
 function updateUserPosition(isFromInterval=true){
     const options = {
@@ -217,3 +241,9 @@ updateUserPosition(false)
 positionUpdateInterval = setInterval(() => {
     updateUserPosition()
 }, 1_000); // 10s
+
+setViewDateValueToToday()
+
+document.getElementById("viewDate").addEventListener("change", (e)=>{
+    closeWebsocket()
+})

@@ -75,7 +75,6 @@ class GTFS_DataFetcher:
         self.feedThread.start()
 
     def updateFeedLoop(self):
-        # TODO: dont fetch data if we dont have clients connected to send the data to
         while True:
             time.sleep(0.25)
             if 0 >= self.clientCount: continue # if 0 or negative then we have no one to send the data to, dont waste bandwidth and dont send data

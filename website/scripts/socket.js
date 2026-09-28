@@ -1,17 +1,49 @@
 let ws = null
 
+function closeWebsocket(){
+    if(ws == null){
+        console.log("[!!!] Websocket is not opened! We cannot close it")
+    }
+    ws.close()
+}
+
 function reconnectWebsocket(){
     console.log(API_URL)
     ws = new WebSocket(API_URL)
     
     ws.onopen = (e)=>{
         console.log("Websocket opened!")
+        
+        let wantDate = getDateValueYYYYMMDD()
+        let storedDate = window.localStorage.getItem("storedDate")
+        if(storedDate == null || storedDate != wantDate){
+            console.log("Fetching data for date: ", wantDate)
+            window.localStorage.setItem("storedDate", wantDate)
+
+            let requestedDatePacket = {
+                "type": "requestDate",
+                "date": wantDate,
+            }
+            ws.send( JSON.stringify(requestedDatePacket) )
+        }
+        else{
+            console.log("Already saved data from ", wantDate)
+            stopsPacket = {"type": "stopsInfo", "data": JSON.parse(window.localStorage.getItem("stopsInfo")) }
+            shapesPacket = {"type": "shapesInfo", "data": JSON.parse(window.localStorage.getItem("shapesInfo")) }
+            routesPacket = {"type": "routesInfo", "data": JSON.parse(window.localStorage.getItem("routesInfo")) }
+            tripsPacket = {"type": "tripsInfo", "data": JSON.parse(window.localStorage.getItem("tripsInfo")) }
+
+            handleWebsocketPacket(stopsPacket)
+            handleWebsocketPacket(shapesPacket)
+            handleWebsocketPacket(routesPacket)
+            handleWebsocketPacket(tripsPacket)
+        }
     }
 
     ws.onclose = (e)=>{
         console.log("Websocket closed!")
         // TODO: make a little indicator saying wether we're connected to the server or not
-        // cleanup our old data, not that we dont have a source of truth
+        // cleanup our old data, not that we don't have a source of truth
         removeAllStops()
         shapes = {} // nothing to remove here
         removeAllRoutes()
@@ -34,8 +66,12 @@ function reconnectWebsocket(){
 
     ws.onmessage = (e)=>{
         let data = JSON.parse(e.data)
+        handleWebsocketPacket(data)
+    }
+    
+    
+    function handleWebsocketPacket(data){
         let printData = true
-
         let type = data["type"]
         let packetData = data["data"]
         if(type == "stopsInfo"){
@@ -44,12 +80,14 @@ function reconnectWebsocket(){
                 stops[s.getId()] = s
                 s.updateIcon()
             });
+            window.localStorage.setItem("stopsInfo", JSON.stringify(packetData))
         }
         else if(type == "shapesInfo"){
             packetData.forEach(shapeData => {
                 s = new Shape(shapeData)
                 shapes[s.getId()] = s
             });
+            window.localStorage.setItem("shapesInfo", JSON.stringify(packetData))
         }
         else if(type == "routesInfo"){
             packetData.forEach(routeData => {
@@ -58,6 +96,7 @@ function reconnectWebsocket(){
                 if(r.getShortName().startsWith("O")){ r.showRoute = true; }
                 routes[r.getId()] = r
             });
+            window.localStorage.setItem("routesInfo", JSON.stringify(packetData))
         }
         else if(type == "tripsInfo"){
             packetData.forEach(tripData => {
@@ -72,9 +111,13 @@ function reconnectWebsocket(){
                 stops[sId].sortScheduledStops()
             })
             removeOldStops(getTimeSinceMidnight())
+            window.localStorage.setItem("tripsInfo", JSON.stringify(packetData))
         }
         else if(type == "feed"){
-            printData = false // dont print the 1 million feed packets we're gonna get
+            // TODO: make this be saved in settings.js and update the value when we change our date or reconnect to the socket
+            if(getDateYYYYMMDD() != getDateValueYYYYMMDD()){ return }
+
+            printData = false // don't print the 1 million feed packets we're gonna get
             console.log("Got feed update")
 
             dataMadeTime = packetData["timestamp"]
@@ -97,10 +140,11 @@ function reconnectWebsocket(){
             });
         }
         else{
-            consle.error("Unknown type of packet!!")
+            console.error("Unknown type of packet!!")
         }
 
         if(printData){ console.log(data) }
     }
 }
+
 reconnectWebsocket() // init connect to the api websocket

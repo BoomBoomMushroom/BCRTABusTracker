@@ -58,7 +58,7 @@ class Stop{
                 // end that route text with </div></details>
             }
 
-            let timePreferredStr = clock24HrToPrefered(ts.arrivalTime, removeZeroSecondsFromStopTime)
+            let timePreferredStr = clock24HrToPreferred(ts.arrivalTime, removeZeroSecondsFromStopTime)
             let secondsUntilArrival = secondsUntil(ts.arrivalTime)
             let timeUntilArrivalStr = (secondsUntilArrival > 30) ? `in ${secondsToCountdownTime(secondsUntilArrival)}` : "now"
             routeText += `\n
