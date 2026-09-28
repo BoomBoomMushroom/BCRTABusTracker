@@ -175,23 +175,19 @@ setTimeout(() => {
 
 function removeAllStops(){
     Object.keys(stops).forEach(sKey=>{
-        map.removeLayer( stops[sKey].icon )
+        stops[sKey].removeIcon()
     })
     stops = {}
 }
 function removeAllRoutes(){
     Object.keys(routes).forEach(rKey=>{
-        lines = Object.values(routes[rKey].polyLine)
-        lines.forEach(pLine => {
-            map.removeLayer(pLine)
-        });
+        routes[rKey].removeAllPolylines()
     })
     routes = {}
 }
 function removeAllVehicles(){
     Object.keys(vehicles).forEach(vKey=>{
-        map.removeLayer( vehicles[vKey].icon )
-        map.removeLayer( vehicles[vKey].directionArrow )
+        vehicles[vKey].removeIcon()
     })
     vehicles = {}
 }

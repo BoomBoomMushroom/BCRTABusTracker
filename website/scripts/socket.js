@@ -1,4 +1,5 @@
 let ws = null
+let statusIndicator = document.getElementById("connectionStatusIndicatorEle")
 
 function closeWebsocket(){
     if(ws == null){
@@ -13,6 +14,7 @@ function reconnectWebsocket(){
     
     ws.onopen = (e)=>{
         console.log("Websocket opened!")
+        statusIndicator.innerText = CONNECTING_MESSAGE
         
         let wantDate = getDateValueYYYYMMDD()
         let storedDate = window.localStorage.getItem("storedDate")
@@ -25,6 +27,7 @@ function reconnectWebsocket(){
                 "date": wantDate,
             }
             ws.send( JSON.stringify(requestedDatePacket) )
+            statusIndicator.innerText = FETCHING_DATA_MESSAGE + "(1/4)"
         }
         else{
             console.log("Already saved data from ", wantDate)
@@ -42,7 +45,7 @@ function reconnectWebsocket(){
 
     ws.onclose = (e)=>{
         console.log("Websocket closed!")
-        // TODO: make a little indicator saying wether we're connected to the server or not
+        statusIndicator.innerText = NOT_CONNECTED_MESSAGE
         // cleanup our old data, not that we don't have a source of truth
         removeAllStops()
         shapes = {} // nothing to remove here
@@ -62,6 +65,7 @@ function reconnectWebsocket(){
     ws.onerror = (e)=>{
         console.error(e)
         //ws.onclose()
+        statusIndicator.innerText = NOT_CONNECTED_MESSAGE
     }
 
     ws.onmessage = (e)=>{
@@ -81,6 +85,7 @@ function reconnectWebsocket(){
                 s.updateIcon()
             });
             window.localStorage.setItem("stopsInfo", JSON.stringify(packetData))
+            statusIndicator.innerText = FETCHING_DATA_MESSAGE + "(2/4)"
         }
         else if(type == "shapesInfo"){
             packetData.forEach(shapeData => {
@@ -88,6 +93,7 @@ function reconnectWebsocket(){
                 shapes[s.getId()] = s
             });
             window.localStorage.setItem("shapesInfo", JSON.stringify(packetData))
+            statusIndicator.innerText = FETCHING_DATA_MESSAGE + "(3/4)"
         }
         else if(type == "routesInfo"){
             packetData.forEach(routeData => {
@@ -97,6 +103,7 @@ function reconnectWebsocket(){
                 routes[r.getId()] = r
             });
             window.localStorage.setItem("routesInfo", JSON.stringify(packetData))
+            statusIndicator.innerText = FETCHING_DATA_MESSAGE + "(4/4)"
         }
         else if(type == "tripsInfo"){
             packetData.forEach(tripData => {
@@ -112,10 +119,13 @@ function reconnectWebsocket(){
             })
             removeOldStops(getTimeSinceMidnight())
             window.localStorage.setItem("tripsInfo", JSON.stringify(packetData))
+            statusIndicator.innerText = CONNECTED_MESSAGE
         }
         else if(type == "feed"){
-            // TODO: make this be saved in settings.js and update the value when we change our date or reconnect to the socket
-            if(getDateYYYYMMDD() != getDateValueYYYYMMDD()){ return }
+            if(getDateYYYYMMDD() != getDateValueYYYYMMDD()){
+                statusIndicator.innerText = NO_LIVE_UPDATES_MESSAGE
+                return
+            }
 
             printData = false // don't print the 1 million feed packets we're gonna get
             console.log("Got feed update")

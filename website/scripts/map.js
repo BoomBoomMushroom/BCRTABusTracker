@@ -73,6 +73,17 @@ dateControl.onAdd = (map) => {
 }
 dateControl.addTo(map)
 
+let connectionStatusIndicator = L.control({position: "bottomleft"})
+connectionStatusIndicator.onAdd = (map) => {
+    let div = L.DomUtil.create("div", "connectionStatusIndicator")
+    div.innerHTML = `
+    <span>Server Connection: <span id="connectionStatusIndicatorEle">${NOT_CONNECTED_MESSAGE}</span></span>
+    `;
+    L.DomEvent.disableClickPropagation(div)
+    return div
+}
+connectionStatusIndicator.addTo(map)
+
 let routeControl = L.control({position: "topright"})
 routeControl.onAdd = (map) => {
     let div = L.DomUtil.create("div", "routeControl")

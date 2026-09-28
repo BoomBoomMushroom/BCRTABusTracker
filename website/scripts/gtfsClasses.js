@@ -25,6 +25,9 @@ class Stop{
         this.icon = null
     }
 
+    removeIcon(){
+        map.removeLayer( this.icon )
+    }
     updateIcon(){
         if(this.icon != null){return}
         this.icon = createBusStopIcon(this.id)
@@ -170,6 +173,13 @@ class Route{
     getLongName(){ return this.longName }
     getColor(){ return this.color }
     getTextColor(){ return this.textColor }
+
+    removeAllPolylines(){
+        Object.values(this.polyLine).forEach(pLine => {
+            map.removeLayer(pLine)
+        });
+        this.polyLine = {}
+    }
 }
 
 class Trip{
@@ -253,6 +263,13 @@ class Vehicle{
             this.lat = newPos[0]
             this.lon = newPos[1]
         }, 10);
+    }
+
+    removeIcon(){
+        map.removeLayer(this.icon)
+        map.removeLayer(this.directionArrow)
+        this.icon = null
+        this.directionArrow = null
     }
 
     onUpdate(){
@@ -367,7 +384,6 @@ class Vehicle{
         let info = `<span><strong>Seats</strong>: ${OccupancyStatus[this.getOccupancyStatus()]}</span>`
         let speed = Math.floor(mpsToMph(this.speed)*100)/100 // round to 2 decimal places
 
-        // TODO: remove this bearing and make each piece of info in-line
         return `<div style='vehicleInfo'>
             ${label}
             <div>

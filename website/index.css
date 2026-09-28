@@ -19,7 +19,7 @@
     height: 100%;
 }
 
-.routeControl, .dateControl{
+.routeControl, .dateControl, .connectionStatusIndicator{
     background-color: white;
     padding: 5px;
 }
