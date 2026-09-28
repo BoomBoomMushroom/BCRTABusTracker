@@ -114,7 +114,3 @@ if __name__ == "__main__":
 
         print("Restarting server...")
 
-# TODO: store the stops and routes and stuff inside of browser cookies. and have them expire at midnight each day
-# TODO: make the client send the current day (or whichever day they want to view) to init the handshake and get the data
-# TODO: make a connection status, red=not connected, yellow=connecting w/ 1 of x for all the states, and green=connected
-
