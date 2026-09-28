@@ -47,12 +47,12 @@ function reloadMapLayer(){
 }
 
 let focusOutTime = Date.now()
-document.addEventListener("focusout", (e)=>{
+window.addEventListener("focusout", (e)=>{
     focusOutTime = Date.now()
 })
-document.addEventListener("focusin", (e)=>{
+window.addEventListener("focusin", (e)=>{
     let dt = Date.now() - focusOutTime
-    console.log(`Been off of the page for ${dt} seconds`)
+    console.log(`Been off of the page for ${dt/1000} seconds`)
     // if we've been off of the page for 30+ seconds then reload the map
     if(dt >= 30 * 1000){
         reloadMapLayer()
@@ -60,29 +60,32 @@ document.addEventListener("focusin", (e)=>{
 })
 reloadMapLayer()
 
-let dateControl = L.control({position: "topright"})
-dateControl.onAdd = (map) => {
-    let div = L.DomUtil.create("div", "dateControl")
-    div.innerHTML = `
-    <label for="viewDate"><strong>Change Date</strong></label>
-    <br>
-    <input name="viewDate" id="viewDate" type="date" style="margin-top: 5px;">
-    `;
-    L.DomEvent.disableClickPropagation(div)
-    return div
-}
-dateControl.addTo(map)
 
-let connectionStatusIndicator = L.control({position: "bottomleft"})
+let connectionStatusIndicator = L.control({position: "bottomright"})
 connectionStatusIndicator.onAdd = (map) => {
     let div = L.DomUtil.create("div", "connectionStatusIndicator")
     div.innerHTML = `
     <span>Server Connection: <span id="connectionStatusIndicatorEle">${NOT_CONNECTED_MESSAGE}</span></span>
     `;
+    div.style = "margin-bottom: 5px;"
     L.DomEvent.disableClickPropagation(div)
     return div
 }
 connectionStatusIndicator.addTo(map)
+
+let dateControl = L.control({position: "topright"})
+dateControl.onAdd = (map) => {
+    let div = L.DomUtil.create("div", "dateControl")
+    div.innerHTML = `
+    <details open>
+        <summary><strong>Change Date</strong></summary>
+        <input name="viewDate" id="viewDate" type="date" style="margin-top: 5px;">
+    </details>
+    `;
+    L.DomEvent.disableClickPropagation(div)
+    return div
+}
+dateControl.addTo(map)
 
 let routeControl = L.control({position: "topright"})
 routeControl.onAdd = (map) => {
