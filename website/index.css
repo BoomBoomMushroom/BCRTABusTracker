@@ -1,3 +1,5 @@
+/* TODO: round the corners of some of the things */ 
+
 .leaflet-top.leaflet-right {
     display: flex;
     flex-direction: row;

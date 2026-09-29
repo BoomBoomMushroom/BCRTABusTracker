@@ -33,6 +33,7 @@ class Stop{
         this.icon = createBusStopIcon(this.id)
     }
     getPopupText(){
+        console.log("stop popup called")
         let descText = this.desc
         descText += "The time tables are scrollable!"
 

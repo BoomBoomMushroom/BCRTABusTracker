@@ -84,6 +84,11 @@ function hhmmssToSecondsSinceMidnight(hhmmss){
     return (hrs * 60*60) + (mins * 60) + secs
 }
 function getTimeSinceMidnight(){
+    if(getDateValueYYYYMMDD() != getDateYYYYMMDD()){
+        // we're viewing a different day, we should not remove bus stops based on time
+        return 0; // midnight, so we don't remove stops
+    }
+
     let date = new Date()
     return (date.getHours() * 60*60) + (date.getMinutes() * 60) + date.getSeconds()
 }
