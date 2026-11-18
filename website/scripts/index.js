@@ -252,5 +252,6 @@ setViewDateValue( window.localStorage.getItem("storedDate") )
 
 
 document.getElementById("viewDate").addEventListener("change", (e)=>{
+    window.localStorage.setItem("storedDate", getDateValueYYYYMMDD())
     closeWebsocket()
 })
