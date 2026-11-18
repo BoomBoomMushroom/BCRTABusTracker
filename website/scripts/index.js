@@ -45,12 +45,16 @@ function getClosestStopAndDistFromLatLon(pos){
     return [closestStop, shortestDist]
 }
 
+function setViewDateValue(yyyymmdd){
+    let ele = document.getElementById("viewDate")
+    
+    let val = yyyymmdd.substring(0,4) + "-" + yyyymmdd.substring(4,6) + "-" + yyyymmdd.substring(6,8)
+    ele.value = val
+}
 function setViewDateValueToToday(){
     // make it today
-    let ele = document.getElementById("viewDate")
     let str = getDateYYYYMMDD()
-    let val = str.substring(0,4) + "-" + str.substring(4,6) + "-" + str.substring(6,8)
-    ele.value = val
+    setViewDateValue(str)
 }
 function getDateValueYYYYMMDD(){
     // val = YYYY-MM-DD
@@ -243,7 +247,9 @@ positionUpdateInterval = setInterval(() => {
     updateUserPosition()
 }, 1_000); // 10s
 
-setViewDateValueToToday()
+//setViewDateValueToToday()
+setViewDateValue( window.localStorage.getItem("storedDate") )
+
 
 document.getElementById("viewDate").addEventListener("change", (e)=>{
     closeWebsocket()
