@@ -1,6 +1,7 @@
 from websocket_server import WebsocketServer
 import json
 import sys
+import time
 
 import gtfsData
 import transitClasses
@@ -8,6 +9,8 @@ import transitClasses
 server: WebsocketServer = None
 fetcher: gtfsData.GTFS_DataFetcher = None
 restartServer: bool = False
+
+startTime: int = time.time()
 
 def onNewFeedCallback(transitFeed: transitClasses.Feed, specificClient=None):
     if server == None: return # no server to send to
@@ -26,6 +29,11 @@ def onNewFeedCallback(transitFeed: transitClasses.Feed, specificClient=None):
 def onClientJoined(client, server: WebsocketServer):
     fetcher.clientCount += 1
     print(f"{client['address']} has joined! Client count: {fetcher.clientCount}")
+
+    deltaTime: int = time.time() - startTime
+    if deltaTime >= 8*60*60:
+        print("it's been more than 8 hours, restarting the server!")
+        exit()
 
 def onClientLeft(client, server: WebsocketServer):
     fetcher.clientCount -= 1
