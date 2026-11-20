@@ -31,7 +31,9 @@ def onClientJoined(client, server: WebsocketServer):
     print(f"{client['address']} has joined! Client count: {fetcher.clientCount}")
 
     deltaTime: int = time.time() - startTime
+    print(f"{deltaTime=} seconds ; {deltaTime/60/60} hrs")
     if deltaTime >= 8*60*60:
+        startTime = time.time()
         print("it's been more than 8 hours, restarting the server!")
         exit()
 
